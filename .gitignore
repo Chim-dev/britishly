@@ -1,0 +1,73 @@
+# ============================================
+# Britishly - Vocabulary Builder App
+# .gitignore ROOT (berlaku untuk seluruh repo)
+# ============================================
+# Catatan: folder frontend/ punya .gitignore sendiri bawaan Flutter,
+# jadi di sini cukup hal-hal umum + rahasia (secrets).
+
+# --- Secrets / kredensial (WAJIB, jangan pernah di-commit) ---
+# Berisi URL & anon key Supabase, dsb.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.jks
+*.keystore
+secrets.json
+service-account*.json
+
+# --- OS / sistem ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# --- Editor / IDE ---
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+.history/
+
+# --- Log & file sementara ---
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+logs/
+tmp/
+
+# --- Dependency umum (kalau nanti ada tooling Node di root) ---
+node_modules/
+
+# --- Hasil build / rilis ---
+build/
+dist/
+out/
+release/
+*.apk
+*.aab
+*.ipa
+*.app.zip
+
+# --- Coverage / hasil test ---
+coverage/
+*.lcov
+
+# --- File dokumentasi hasil generate (opsional) ---
+# ERD & use case DISIMPAN di git (dibutuhkan untuk laporan tugas),
+# jadi JANGAN di-ignore:
+# erd_vocab_app.png
+# usecase_vocab_app.png

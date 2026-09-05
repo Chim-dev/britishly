@@ -1,0 +1,53 @@
+# ============================================
+# backend/ - Supabase (SQL, migrations, functions)
+# ============================================
+
+# --- Kredensial & config lokal Supabase ---
+.env
+.env.*
+!.env.example
+.branches/
+.temp/
+.supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+supabase/config.toml.local
+
+# --- Dump / backup database (bisa berisi data user asli) ---
+*.dump
+*.sql.gz
+*.backup
+dump.sql
+backup/
+dumps/
+
+# --- Edge Functions (kalau nanti pakai Deno/Node) ---
+node_modules/
+.deno/
+deno.lock
+dist/
+build/
+
+# --- Log & sementara ---
+*.log
+logs/
+*.tmp
+*.bak
+*~
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.iml
+
+# ============================================
+# CATATAN PENTING:
+# File SQL rancangan skema & function TETAP DI-COMMIT, contoh:
+#   backend/supabase/migrations/*.sql
+#   backend/functions/save_word_with_synonyms.sql
+# Yang di-ignore hanya kredensial, dump data, dan file build.
+# ============================================
