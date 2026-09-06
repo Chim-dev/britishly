@@ -2,14 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../core/konstanta.dart';
 import '../core/tema.dart';
+import '../services/layanan_kosakata.dart';
 
 /// Lembar pilihan kategori minimalis & estetis.
 Future<String?> pilihKategori(
   BuildContext context, {
   String terpilih = 'Sehari-hari',
-  List<String> kategoriTambahan = const [],
-}) {
-  final semua = <String>{...kKategoriBawaan, ...kategoriTambahan}.toList();
+  List<String>? kategoriTambahan,
+}) async {
+  List<String> tambahan = kategoriTambahan ?? [];
+  if (kategoriTambahan == null) {
+    try {
+      tambahan = await LayananKosakata.instance.ambilDaftarKategori();
+    } catch (_) {}
+  }
+  final semua = <String>{...kKategoriBawaan, ...tambahan}.toList();
+
+  if (!context.mounted) return null;
 
   return showModalBottomSheet<String>(
     context: context,
@@ -45,21 +54,25 @@ class _IsiPemilihKategoriState extends State<_IsiPemilihKategori> {
     super.dispose();
   }
 
-  void _simpanBaru() {
+  Future<void> _simpanBaru() async {
     final teks = _ctrl.text.trim();
     if (teks.isEmpty) return;
+    await LayananKosakata.instance.simpanKategoriKustom(teks);
+    if (!mounted) return;
     Navigator.pop(context, teks);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 8,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 8,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,6 +134,7 @@ class _IsiPemilihKategoriState extends State<_IsiPemilihKategori> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }

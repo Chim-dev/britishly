@@ -9,6 +9,8 @@ import '../../services/layanan_auth.dart';
 import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kata_harian.dart';
 import '../../services/layanan_kosakata.dart';
+import '../../services/layanan_notifikasi.dart';
+import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
 
@@ -34,6 +36,8 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
   void initState() {
     super.initState();
     _muat();
+    // Minta izin notifikasi secara halus; jika ditolak, berjalan aman tanpa error
+    LayananNotifikasi.instance.mintaIzin();
   }
 
   String _kunciRevealHariIni(DateTime dt) =>
@@ -74,6 +78,9 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         _cuplikanSinonim = sinonim;
         _sudahDisimpan = tersimpan;
       });
+
+      // Jadwalkan pengingat harian dengan kata hari ini
+      LayananNotifikasi.instance.jadwalkanKataHarian(kata: hasil.kata);
     } catch (e) {
       if (!mounted) return;
       setState(() => _pesanError = LayananKosakata.pesanRamah(e));
@@ -157,7 +164,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
       onRefresh: _muat,
       color: TemaBritishly.hijau,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
         children: [
           // Header: Tanggal & Streak Pill
           _barisTanggalStreak(kata),
@@ -185,7 +192,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Satu kata baru otomatis hadir setiap tengah malam.',
+                  'Satu kata baru tiap hari',
                   style: TextStyle(
                     fontSize: 12,
                     color: TemaBritishly.tintaPudar.withValues(alpha: 0.85),
@@ -612,34 +619,43 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                       definisiAsli: s.definisi,
                     );
                     return Tooltip(
-                      message: '$nuansa (Ketuk audio untuk pelafalan)',
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
-                        decoration: BoxDecoration(
-                          color: TemaBritishly.kremIsi,
+                      message: '$nuansa (Ketuk teks untuk arti, ikon speaker untuk audio)',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: TemaBritishly.kremGaris),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              s.teks,
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                color: TemaBritishly.tinta,
-                              ),
+                          onTap: () => tampilkanLembarDetailKata(context, s.teks),
+                          child: Container(
+                            padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
+                            decoration: BoxDecoration(
+                              color: TemaBritishly.kremIsi,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: TemaBritishly.kremGaris),
                             ),
-                            const SizedBox(width: 4),
-                            TombolAudio(
-                              teks: s.teks,
-                              ukuran: 22,
-                              warnaLatar: Colors.transparent,
-                              warnaIkon: TemaBritishly.hijau,
-                              tooltip: 'Dengar "${s.teks}"',
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  s.teks,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: TemaBritishly.tinta,
+                                    decoration: TextDecoration.underline,
+                                    decorationStyle: TextDecorationStyle.dotted,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                TombolAudio(
+                                  teks: s.teks,
+                                  ukuran: 22,
+                                  warnaLatar: Colors.transparent,
+                                  warnaIkon: TemaBritishly.hijau,
+                                  tooltip: 'Dengar "${s.teks}"',
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     );

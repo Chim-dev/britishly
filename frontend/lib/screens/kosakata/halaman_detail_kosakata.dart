@@ -6,6 +6,7 @@ import '../../models/kata_tersimpan.dart';
 import '../../models/sinonim.dart';
 import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kosakata.dart';
+import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
 import 'halaman_kosakata.dart' show warnaStatus;
@@ -342,9 +343,34 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
                     ListTile(
                       title: Row(
                         children: [
-                          Text(
-                            _sinonim[i].teks,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(6),
+                            onTap: () => tampilkanLembarDetailKata(
+                              context,
+                              _sinonim[i].teks,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _sinonim[i].teks,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                      decorationStyle: TextDecorationStyle.dotted,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 14,
+                                    color: TemaBritishly.hijau,
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                           const Spacer(),
                           TombolAudio(

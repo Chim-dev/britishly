@@ -505,7 +505,7 @@ class _HalamanCariState extends State<HalamanCari> {
     final jumlahDipilih = _sinonim.where((s) => s.dipilih).length;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
       children: [
         // Kartu Kata Utama + Pelafalan + Tombol Audio British
         Card(
@@ -730,9 +730,32 @@ class _HalamanCariState extends State<HalamanCari> {
                         setState(() => _sinonim[i].dipilih = v ?? false),
                     title: Row(
                       children: [
-                        Text(
-                          _sinonim[i].teks,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(6),
+                          onTap: () => _cariKata(_sinonim[i].teks),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _sinonim[i].teks,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    decoration: TextDecoration.underline,
+                                    decorationStyle: TextDecorationStyle.dotted,
+                                    color: TemaBritishly.tinta,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                const Icon(
+                                  Icons.open_in_new_rounded,
+                                  size: 13,
+                                  color: TemaBritishly.hijau,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         const Spacer(),
                         TombolAudio(
@@ -864,7 +887,7 @@ class _HalamanCariState extends State<HalamanCari> {
     ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
       children: [
         // Info Banner Akronim
         Container(

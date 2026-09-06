@@ -21,6 +21,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
   final _cariCtrl = TextEditingController();
 
   List<KataTersimpan> _daftar = [];
+  List<String> _kategoriKustom = [];
   bool _sedangMuat = true;
   String? _pesanError;
 
@@ -56,8 +57,12 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
         status: _filterStatus,
         cari: _cariCtrl.text,
       );
+      final kustom = await LayananKosakata.instance.ambilDaftarKategori();
       if (!mounted) return;
-      setState(() => _daftar = data);
+      setState(() {
+        _daftar = data;
+        _kategoriKustom = kustom;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _pesanError = LayananKosakata.pesanRamah(e));
@@ -213,6 +218,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
   Widget _barisFilter() {
     final kategoriTersedia = <String>{
       ...kKategoriBawaan,
+      ..._kategoriKustom,
       ..._daftar.map((k) => k.kategori),
     }.toList();
 
@@ -226,6 +232,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           // Filter Favorit
           FilterChip(
             label: const Text('Favorit'),
+            showCheckmark: false,
             avatar: Icon(
               _filterFavorit ? Icons.star_rounded : Icons.star_outline_rounded,
               size: 17,
@@ -243,6 +250,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           for (final s in StatusHafalan.values) ...[
             FilterChip(
               label: Text(s.label),
+              showCheckmark: false,
               avatar: Icon(Icons.circle, size: 8, color: warnaStatus(s)),
               selected: _filterStatus == s,
               onSelected: (v) {
@@ -265,6 +273,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           for (final k in kategoriTersedia) ...[
             FilterChip(
               label: Text(k),
+              showCheckmark: false,
               selected: _filterKategori == k,
               onSelected: (v) {
                 setState(() => _filterKategori = v ? k : null);
@@ -339,7 +348,7 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
       onRefresh: _muat,
       color: TemaBritishly.hijau,
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
         itemCount: _daftar.length,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (_, i) => _kartuKata(_daftar[i]),

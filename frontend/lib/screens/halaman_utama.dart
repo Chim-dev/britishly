@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/tema.dart';
 import '../services/layanan_auth.dart';
+import '../services/layanan_notifikasi.dart';
 import 'harian/halaman_kata_harian.dart';
 import 'kosakata/halaman_kosakata.dart';
 import 'pencarian/halaman_cari.dart';
@@ -16,6 +17,26 @@ class HalamanUtama extends StatefulWidget {
 
 class _HalamanUtamaState extends State<HalamanUtama> {
   int _indeks = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    LayananNotifikasi.instance.padaNotifikasiDiklik.addListener(_tanganiNotifikasi);
+  }
+
+  @override
+  void dispose() {
+    LayananNotifikasi.instance.padaNotifikasiDiklik.removeListener(_tanganiNotifikasi);
+    super.dispose();
+  }
+
+  void _tanganiNotifikasi() {
+    final payload = LayananNotifikasi.instance.padaNotifikasiDiklik.value;
+    if (payload != null && mounted) {
+      setState(() => _indeks = 0); // Tab Kata Hari Ini
+      LayananNotifikasi.instance.padaNotifikasiDiklik.value = null;
+    }
+  }
 
   final List<Widget> _halaman = const [
     HalamanKataHarian(),
@@ -225,26 +246,29 @@ class _HalamanUtamaState extends State<HalamanUtama> {
             top: BorderSide(color: TemaBritishly.kremGaris, width: 0.8),
           ),
         ),
-        child: NavigationBar(
-          selectedIndex: _indeks,
-          onDestinationSelected: (i) => setState(() => _indeks = i),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.wb_sunny_outlined),
-              selectedIcon: Icon(Icons.wb_sunny_rounded),
-              label: 'Hari Ini',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.search_rounded),
-              selectedIcon: Icon(Icons.manage_search_rounded),
-              label: 'Eksplorasi',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.bookmark_border_rounded),
-              selectedIcon: Icon(Icons.bookmark_rounded),
-              label: 'Koleksi',
-            ),
-          ],
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _indeks,
+            onDestinationSelected: (i) => setState(() => _indeks = i),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.wb_sunny_outlined),
+                selectedIcon: Icon(Icons.wb_sunny_rounded),
+                label: 'Hari Ini',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.search_rounded),
+                selectedIcon: Icon(Icons.manage_search_rounded),
+                label: 'Eksplorasi',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.bookmark_border_rounded),
+                selectedIcon: Icon(Icons.bookmark_rounded),
+                label: 'Koleksi',
+              ),
+            ],
+          ),
         ),
       ),
     );

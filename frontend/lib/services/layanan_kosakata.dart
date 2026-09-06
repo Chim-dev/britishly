@@ -1,3 +1,4 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/kata_tersimpan.dart';
@@ -81,6 +82,50 @@ class LayananKosakata {
 
     final data = await kueri.order('created_at', ascending: false);
     return data.map(KataTersimpan.dariBaris).toList();
+  }
+
+  static const _kunciKategoriKustom = 'kategori_kustom_pengguna';
+
+  /// Mengambil seluruh kategori unik (dari kata tersimpan di Supabase & SharedPreferences lokal).
+  Future<List<String>> ambilDaftarKategori() async {
+    final hasil = <String>{};
+
+    // 1. Ambil kategori kustom yang pernah disimpan di SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lokal = prefs.getStringList(_kunciKategoriKustom) ?? [];
+      for (final k in lokal) {
+        final bersih = k.trim();
+        if (bersih.isNotEmpty) hasil.add(bersih);
+      }
+    } catch (_) {}
+
+    // 2. Ambil kategori unik yang ada di tabel saved_words Supabase
+    try {
+      final data = await _klien.from('saved_words').select('category');
+      for (final baris in data) {
+        final kat = (baris['category'] as String?)?.trim();
+        if (kat != null && kat.isNotEmpty) {
+          hasil.add(kat);
+        }
+      }
+    } catch (_) {}
+
+    return hasil.toList();
+  }
+
+  /// Menyimpan nama kategori kustom baru ke SharedPreferences agar langsung muncul di pilihan selanjutnya.
+  Future<void> simpanKategoriKustom(String kategori) async {
+    final bersih = kategori.trim();
+    if (bersih.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lokal = prefs.getStringList(_kunciKategoriKustom) ?? [];
+      if (!lokal.contains(bersih)) {
+        lokal.add(bersih);
+        await prefs.setStringList(_kunciKategoriKustom, lokal);
+      }
+    } catch (_) {}
   }
 
   /// Dipakai halaman pencarian untuk menandai kata yang sudah tersimpan.

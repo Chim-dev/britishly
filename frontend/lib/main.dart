@@ -4,9 +4,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/tema.dart';
 import 'screens/auth/gerbang_auth.dart';
+import 'services/layanan_notifikasi.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await LayananNotifikasi.instance.inisialisasi();
 
   String? errorInit;
 
