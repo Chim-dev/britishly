@@ -173,12 +173,15 @@ cd Britishly
 
 ### 3. Konfigurasi environment
 
-Buat file `.env` di root project:
+Salin `frontend/.env.example` menjadi `frontend/.env`, lalu isi:
 
 ```env
 SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
+
+> File harus berada di dalam `frontend/` karena didaftarkan sebagai *asset*
+> Flutter di `pubspec.yaml` — Flutter tidak bisa membaca file di luar folder project.
 
 > ⚠️ File `.env` sudah tercantum di `.gitignore` — **jangan pernah** meng-commit kredensial ke repository.
 
