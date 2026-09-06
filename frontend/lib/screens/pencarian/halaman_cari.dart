@@ -119,9 +119,19 @@ class _HalamanCariState extends State<HalamanCari> {
         _sedangMuat = false;
         _sedangMuatSinonim = false;
         _pesanError = LayananKamus.pesanRamah(e);
-        final salahKata = e is KataTidakDitemukan;
-        _judulError = salahKata ? 'Kata tidak ditemukan' : 'Koneksi bermasalah';
-        _ikonError = salahKata ? Icons.search_off_rounded : Icons.cloud_off_rounded;
+        final teks = e.toString();
+        final isOffline = teks.contains('SocketException') ||
+            teks.contains('Failed host lookup') ||
+            teks.contains('ClientException');
+
+        if (isOffline) {
+          _judulError = 'Koneksi bermasalah';
+          _ikonError = Icons.cloud_off_rounded;
+        } else {
+          // Timeout, KataTidakDitemukan, ServerKamusSibuk, dsb.
+          _judulError = "We couldn't find the word you're looking for";
+          _ikonError = Icons.search_off_rounded;
+        }
       });
     }
   }

@@ -188,6 +188,12 @@ class LayananKosakata {
     await _klien.from('saved_words').delete().eq('id', id);
   }
 
+  /// Menghapus banyak kata sekaligus (batch delete).
+  Future<void> hapusBanyak(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _klien.from('saved_words').delete().inFilter('id', ids);
+  }
+
   // ------------------------------------------------------------------
 
   static String pesanRamah(Object error) {

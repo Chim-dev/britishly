@@ -514,25 +514,23 @@ class LayananKamus {
     return bagian.length > 1 ? bagian.last.trim() : pertama.trim();
   }
 
-  /// Mengubah error jaringan menjadi kalimat yang dimengerti pengguna.
+  /// Mengubah error pencarian menjadi kalimat yang dimengerti pengguna.
   static String pesanRamah(Object error) {
     if (error is KataTidakDitemukan) {
-      return 'Kata "${error.kata}" tidak ada di kamus. Periksa ejaannya — '
-          'kamus ini hanya memuat bahasa Inggris.';
+      return 'Kata "${error.kata}" tidak ada di kamus. Periksa kembali ejaannya.';
     }
     if (error is ServerKamusSibuk || error is TimeoutException) {
-      return 'Server kamus sedang lambat merespons. Sudah dicoba beberapa '
-          'kali tapi belum berhasil. Coba lagi sebentar lagi.';
+      return 'Kata yang Anda cari tidak ada di kamus. Periksa kembali ejaannya.';
     }
 
     final teks = error.toString();
+    if (teks.contains('TimeoutException')) {
+      return 'Kata yang Anda cari tidak ada di kamus. Periksa kembali ejaannya.';
+    }
     if (teks.contains('SocketException') ||
         teks.contains('Failed host lookup') ||
         teks.contains('ClientException')) {
       return 'Tidak ada koneksi internet.';
-    }
-    if (teks.contains('TimeoutException')) {
-      return 'Server kamus tidak merespons. Coba lagi sebentar.';
     }
     return teks.replaceFirst('Exception: ', '');
   }

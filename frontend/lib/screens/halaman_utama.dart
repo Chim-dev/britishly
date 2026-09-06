@@ -111,17 +111,52 @@ class _HalamanUtamaState extends State<HalamanUtama> {
                       content: const Text(
                         'Kamu perlu masuk kembali untuk membuka kamus dan akronim pribadimu.',
                       ),
+                      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dCtx, false),
-                          child: const Text('Batal'),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(dCtx, true),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: skema.error,
-                          ),
-                          child: const Text('Keluar'),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => Navigator.pop(dCtx, false),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF2563EB),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Batal',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () => Navigator.pop(dCtx, true),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: skema.error,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Keluar',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

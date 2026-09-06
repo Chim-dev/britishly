@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/konstanta.dart';
 import '../../core/penanda_perubahan.dart';
@@ -28,6 +29,9 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
   String? _filterKategori;
   bool _filterFavorit = false;
   StatusHafalan? _filterStatus;
+
+  bool _modePilihBanyak = false;
+  final Set<String> _idTerpilih = {};
 
   @override
   void initState() {
@@ -62,6 +66,10 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
       setState(() {
         _daftar = data;
         _kategoriKustom = kustom;
+        _idTerpilih.removeWhere((id) => !_daftar.any((k) => k.id == id));
+        if (_idTerpilih.isEmpty) {
+          _modePilihBanyak = false;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -137,17 +145,46 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
               ? 'Item ini akan dihapus permanen dari daftarmu.'
               : 'Item ini beserta ${kata.sinonim.length} sinonimnya akan dihapus permanen.',
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(ctx).colorScheme.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Hapus',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -167,6 +204,187 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
     }
   }
 
+  void _mulaiPilihBanyak(String id) {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _modePilihBanyak = true;
+      _idTerpilih.add(id);
+    });
+  }
+
+  void _togglePilih(String id) {
+    setState(() {
+      if (_idTerpilih.contains(id)) {
+        _idTerpilih.remove(id);
+        if (_idTerpilih.isEmpty) {
+          _modePilihBanyak = false;
+        }
+      } else {
+        _idTerpilih.add(id);
+      }
+    });
+  }
+
+  void _pilihSemuaAtauLepas() {
+    setState(() {
+      if (_idTerpilih.length == _daftar.length) {
+        _idTerpilih.clear();
+        _modePilihBanyak = false;
+      } else {
+        _idTerpilih.clear();
+        _idTerpilih.addAll(_daftar.map((k) => k.id));
+      }
+    });
+  }
+
+  void _batalkanPilihBanyak() {
+    setState(() {
+      _modePilihBanyak = false;
+      _idTerpilih.clear();
+    });
+  }
+
+  Future<void> _hapusTerpilih() async {
+    if (_idTerpilih.isEmpty) return;
+
+    final jumlah = _idTerpilih.length;
+    final setuju = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Hapus $jumlah Kata?'),
+        content: Text(
+          jumlah == 1
+              ? 'Item yang dipilih beserta sinonimnya akan dihapus permanen dari koleksimu.'
+              : '$jumlah item yang dipilih beserta semua sinonimnya akan dihapus permanen dari koleksimu.',
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Batal',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(ctx).colorScheme.error,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    jumlah == _daftar.length ? 'Hapus Semua' : 'Hapus ($jumlah)',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (setuju != true) return;
+
+    final daftarHapus = _idTerpilih.toList();
+    _batalkanPilihBanyak();
+
+    try {
+      await LayananKosakata.instance.hapusBanyak(daftarHapus);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$jumlah kata berhasil dihapus dari koleksi.')),
+      );
+      await _muat();
+    } catch (e) {
+      _tampilkanError(e);
+    }
+  }
+
+  Widget _bilahAksiSeleksi() {
+    final semuaTerpilih =
+        _daftar.isNotEmpty && _idTerpilih.length == _daftar.length;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: TemaBritishly.hijauSamar,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: TemaBritishly.hijau.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 22,
+              color: TemaBritishly.hijau,
+            ),
+            tooltip: 'Batalkan Pilihan',
+            onPressed: _batalkanPilihBanyak,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '${_idTerpilih.length} dipilih',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+              color: TemaBritishly.hijau,
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _pilihSemuaAtauLepas,
+            icon: Icon(
+              semuaTerpilih ? Icons.deselect_rounded : Icons.select_all_rounded,
+              size: 18,
+              color: TemaBritishly.hijau,
+            ),
+            label: Text(
+              semuaTerpilih ? 'Lepas Semua' : 'Pilih Semua',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: TemaBritishly.hijau,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton.filled(
+            onPressed: _idTerpilih.isEmpty ? null : _hapusTerpilih,
+            style: IconButton.styleFrom(
+              backgroundColor: TemaBritishly.merah,
+              foregroundColor: Colors.white,
+            ),
+            icon: const Icon(Icons.delete_rounded, size: 20),
+            tooltip: 'Hapus yang dipilih',
+          ),
+        ],
+      ),
+    );
+  }
+
   void _tampilkanError(Object e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -179,39 +397,52 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Input Pencarian di Kosakata
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: TextField(
-            controller: _cariCtrl,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _muat(),
-            decoration: InputDecoration(
-              hintText: 'Cari kata atau akronim tersimpan...',
-              isDense: true,
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon: _cariCtrl.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear_rounded, size: 18),
-                      onPressed: () {
-                        _cariCtrl.clear();
-                        _muat();
-                      },
-                    ),
+    return PopScope(
+      canPop: !_modePilihBanyak,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_modePilihBanyak) {
+          _batalkanPilihBanyak();
+        }
+      },
+      child: Column(
+        children: [
+          if (_modePilihBanyak)
+            _bilahAksiSeleksi()
+          else ...[
+            // Input Pencarian di Kosakata
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: TextField(
+                controller: _cariCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _muat(),
+                decoration: InputDecoration(
+                  hintText: 'Cari kata atau akronim tersimpan...',
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _cariCtrl.text.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _cariCtrl.clear();
+                            _muat();
+                          },
+                        ),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-        ),
 
-        // Filter Carousel Pills
-        _barisFilter(),
+            // Filter Carousel Pills
+            _barisFilter(),
+          ],
 
-        // Konten List
-        Expanded(child: _isi()),
-      ],
+          // Konten List
+          Expanded(child: _isi()),
+        ],
+      ),
     );
   }
 
@@ -357,15 +588,36 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
   }
 
   Widget _kartuKata(KataTersimpan kata) {
+    final terpilih = _idTerpilih.contains(kata.id);
     // Teks untuk pengucapan audio (ambil singkatan/kata dasarnya saja jika ada tanda kurung)
     final teksLafal = kata.kata.contains('(')
         ? kata.kata.split('(').first.trim()
         : kata.kata;
 
     return Card(
+      elevation: terpilih ? 2 : 0,
+      color: terpilih ? TemaBritishly.hijauSamar : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(
+          color: terpilih ? TemaBritishly.hijau : TemaBritishly.kremGaris,
+          width: terpilih ? 1.8 : 1,
+        ),
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
+        onLongPress: () {
+          if (!_modePilihBanyak) {
+            _mulaiPilihBanyak(kata.id);
+          } else {
+            _togglePilih(kata.id);
+          }
+        },
         onTap: () async {
+          if (_modePilihBanyak) {
+            _togglePilih(kata.id);
+            return;
+          }
           await Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => HalamanDetailKosakata(kata: kata),
@@ -378,7 +630,12 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           child: Container(
             decoration: BoxDecoration(
               border: Border(
-                left: BorderSide(color: warnaStatus(kata.status), width: 4),
+                left: BorderSide(
+                  color: terpilih
+                      ? TemaBritishly.hijau
+                      : warnaStatus(kata.status),
+                  width: terpilih ? 5 : 4,
+                ),
               ),
             ),
             padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
@@ -388,6 +645,20 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    if (_modePilihBanyak) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Icon(
+                          terpilih
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked_rounded,
+                          color: terpilih
+                              ? TemaBritishly.hijau
+                              : TemaBritishly.tintaPudar,
+                          size: 24,
+                        ),
+                      ),
+                    ],
                     Expanded(
                       child: Text(
                         kata.kata,
@@ -399,64 +670,82 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                         ),
                       ),
                     ),
-                    // Tombol Audio British
-                    TombolAudio(
-                      teks: teksLafal,
-                      ukuran: 32,
-                      tooltip: 'Dengarkan "$teksLafal"',
-                    ),
-                    const SizedBox(width: 4),
-                    // Tombol Favorit
-                    IconButton(
-                      tooltip: kata.favorit ? 'Lepas favorit' : 'Jadikan favorit',
-                      icon: Icon(
-                        kata.favorit ? Icons.star_rounded : Icons.star_outline_rounded,
-                        color: kata.favorit ? TemaBritishly.amber : TemaBritishly.tintaPudar,
-                        size: 22,
+                    if (!_modePilihBanyak) ...[
+                      // Tombol Audio British
+                      TombolAudio(
+                        teks: teksLafal,
+                        ukuran: 32,
+                        tooltip: 'Dengarkan "$teksLafal"',
                       ),
-                      onPressed: () => _gantiFavorit(kata),
-                    ),
-                    // Menu opsi
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_vert_rounded,
-                        color: TemaBritishly.tintaPudar,
-                        size: 20,
+                      const SizedBox(width: 4),
+                      // Tombol Favorit
+                      IconButton(
+                        tooltip: kata.favorit
+                            ? 'Lepas favorit'
+                            : 'Jadikan favorit',
+                        icon: Icon(
+                          kata.favorit
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          color: kata.favorit
+                              ? TemaBritishly.amber
+                              : TemaBritishly.tintaPudar,
+                          size: 22,
+                        ),
+                        onPressed: () => _gantiFavorit(kata),
                       ),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      onSelected: (nilai) {
-                        if (nilai == 'status') _gantiStatus(kata);
-                        if (nilai == 'hapus') _hapus(kata);
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'status',
-                          child: Row(
-                            children: [
-                              Icon(Icons.flag_rounded, size: 18, color: TemaBritishly.hijau),
-                              SizedBox(width: 10),
-                              Text('Ubah Status Hafalan'),
-                            ],
-                          ),
+                      // Menu opsi
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.more_vert_rounded,
+                          color: TemaBritishly.tintaPudar,
+                          size: 20,
                         ),
-                        PopupMenuItem(
-                          value: 'hapus',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline_rounded, size: 18, color: TemaBritishly.merah),
-                              SizedBox(width: 10),
-                              Text('Hapus Item'),
-                            ],
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        onSelected: (nilai) {
+                          if (nilai == 'status') _gantiStatus(kata);
+                          if (nilai == 'hapus') _hapus(kata);
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'status',
+                            child: Row(
+                              children: [
+                                Icon(Icons.flag_rounded,
+                                    size: 18, color: TemaBritishly.hijau),
+                                SizedBox(width: 10),
+                                Text('Ubah Status Hafalan'),
+                              ],
+                            ),
                           ),
+                          PopupMenuItem(
+                            value: 'hapus',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_outline_rounded,
+                                    size: 18, color: TemaBritishly.merah),
+                                SizedBox(width: 10),
+                                Text('Hapus Item'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      if (terpilih)
+                        _label(
+                          'Terpilih',
+                          TemaBritishly.hijau.withValues(alpha: 0.15),
+                          TemaBritishly.hijau,
                         ),
-                      ],
-                    ),
+                    ],
                   ],
                 ),
-
                 if (kata.definisi.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8, top: 4, bottom: 12),
+                    padding:
+                        const EdgeInsets.only(right: 8, top: 4, bottom: 12),
                     child: Text(
                       kata.definisi,
                       maxLines: 2,
@@ -468,13 +757,13 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                       ),
                     ),
                   ),
-
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    _label(kata.kategori, TemaBritishly.kremIsi, TemaBritishly.tinta),
+                    _label(kata.kategori, TemaBritishly.kremIsi,
+                        TemaBritishly.tinta),
                     _labelStatus(kata.status),
                     if (kata.sinonim.isNotEmpty)
                       _label(

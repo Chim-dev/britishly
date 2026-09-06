@@ -194,13 +194,26 @@ class _IsiLembarDetailKataState extends State<_IsiLembarDetailKata> {
                           size: 40,
                           color: TemaBritishly.tintaPudar,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "We couldn't find the word you're looking for",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: TemaBritishly.tinta,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         Text(
                           _pesanError!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: TemaBritishly.tintaPudar),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: TemaBritishly.tintaPudar,
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         OutlinedButton(
                           onPressed: _muat,
                           child: const Text('Coba Lagi'),

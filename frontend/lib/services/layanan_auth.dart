@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Use Case 1 — Mendaftar & Masuk Akun.
@@ -30,6 +33,8 @@ class LayananAuth {
     final hasil = await _klien.auth.signUp(
       email: email.trim(),
       password: password,
+      emailRedirectTo:
+          kIsWeb ? null : 'io.supabase.britishly://login-callback',
     );
     return hasil.session != null;
   }
@@ -44,11 +49,51 @@ class LayananAuth {
     );
   }
 
-  /// Masuk atau mendaftar otomatis menggunakan akun Google (OAuth 2.0 PKCE).
+  /// Masuk atau mendaftar otomatis menggunakan akun Google.
   ///
-  /// Membuka peramban aman Google. Setelah disetujui, sesi JWT terenkripsi
-  /// dikirimkan kembali melalui deep link dan disimpan di perangkat.
+  /// Di Android/iOS, mengutamakan Native Google Sign-In (Google Play Services)
+  /// agar muncul dialog resmi bawaan sistem tanpa membuka browser web.
+  /// Bila GOOGLE_WEB_CLIENT_ID belum diisi di .env, otomatis fallback ke Web OAuth.
   Future<bool> masukDenganGoogle() async {
+    final webClientId = (dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim().isNotEmpty ?? false)
+        ? dotenv.env['GOOGLE_WEB_CLIENT_ID']!.trim()
+        : (dotenv.env['GOOGLE_WEB_CLIENT']?.trim() ?? '');
+
+    if (!kIsWeb && webClientId.isNotEmpty) {
+      try {
+        final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+        final googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          // Pengguna membatalkan pemilihan akun di dialog Google
+          return false;
+        }
+
+        final googleAuth = await googleUser.authentication;
+        final idToken = googleAuth.idToken;
+        final accessToken = googleAuth.accessToken;
+
+        if (idToken == null) {
+          throw 'Gagal mendapatkan ID Token dari akun Google.';
+        }
+
+        await _klien.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+          accessToken: accessToken,
+        );
+        return true;
+      } on MissingPluginException {
+        // Terjadi bila aplikasi belum di-restart penuh setelah pasang plugin native
+        final redirectTo =
+            kIsWeb ? null : 'io.supabase.britishly://login-callback';
+        return await _klien.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirectTo,
+        );
+      }
+    }
+
+    // Fallback Web OAuth
     final redirectTo = kIsWeb ? null : 'io.supabase.britishly://login-callback';
     return await _klien.auth.signInWithOAuth(
       OAuthProvider.google,
@@ -56,7 +101,12 @@ class LayananAuth {
     );
   }
 
-  Future<void> keluar() => _klien.auth.signOut();
+  Future<void> keluar() async {
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
+    await _klien.auth.signOut();
+  }
 
   /// Menerjemahkan error Supabase (Bahasa Inggris, kadang teknis)
   /// menjadi kalimat yang bisa dimengerti pengguna.
