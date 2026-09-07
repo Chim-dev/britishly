@@ -55,16 +55,25 @@ class LayananAuth {
   /// agar muncul dialog resmi bawaan sistem tanpa membuka browser web.
   /// Bila GOOGLE_WEB_CLIENT_ID belum diisi di .env, otomatis fallback ke Web OAuth.
   Future<bool> masukDenganGoogle() async {
-    final webClientId = (dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim().isNotEmpty ?? false)
-        ? dotenv.env['GOOGLE_WEB_CLIENT_ID']!.trim()
-        : (dotenv.env['GOOGLE_WEB_CLIENT']?.trim() ?? '');
+    final webClientId =
+        (dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim().isNotEmpty ?? false)
+            ? dotenv.env['GOOGLE_WEB_CLIENT_ID']!.trim()
+            : (dotenv.env['GOOGLE_WEB_CLIENT']?.trim() ?? '');
+
+    final redirectTo = kIsWeb ? null : 'io.supabase.britishly://login-callback';
 
     if (!kIsWeb && webClientId.isNotEmpty) {
       try {
         final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+
+        // Bersihkan sesi lama agar pemilih akun Google selalu segar
+        try {
+          await googleSignIn.signOut();
+        } catch (_) {}
+
         final googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
-          // Pengguna membatalkan pemilihan akun di dialog Google
+          // Pengguna sengaja membatalkan / menutup dialog pemilihan akun Google
           return false;
         }
 
@@ -82,10 +91,18 @@ class LayananAuth {
           accessToken: accessToken,
         );
         return true;
-      } on MissingPluginException {
-        // Terjadi bila aplikasi belum di-restart penuh setelah pasang plugin native
-        final redirectTo =
-            kIsWeb ? null : 'io.supabase.britishly://login-callback';
+      } on PlatformException catch (e) {
+        debugPrint(
+            'Native Google Sign-In error ($e). Melakukan fallback otomatis ke Web OAuth browser...');
+        // Jika Google Play Services di HP gagal (misal: SHA-1 debug/release APK belum terdaftar),
+        // otomatis alihkan ke Web OAuth browser agar user tetap bisa login tanpa terblokir.
+        return await _klien.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: redirectTo,
+        );
+      } catch (e) {
+        debugPrint(
+            'Native Google Sign-In gagal ($e). Melakukan fallback otomatis ke Web OAuth browser...');
         return await _klien.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: redirectTo,
@@ -93,8 +110,7 @@ class LayananAuth {
       }
     }
 
-    // Fallback Web OAuth
-    final redirectTo = kIsWeb ? null : 'io.supabase.britishly://login-callback';
+    // Fallback Web OAuth murni bila webClientId kosong
     return await _klien.auth.signInWithOAuth(
       OAuthProvider.google,
       redirectTo: redirectTo,
@@ -108,8 +124,8 @@ class LayananAuth {
     await _klien.auth.signOut();
   }
 
-  /// Menerjemahkan error Supabase (Bahasa Inggris, kadang teknis)
-  /// menjadi kalimat yang bisa dimengerti pengguna.
+  /// Menerjemahkan error Supabase & Google Play Services
+  /// menjadi kalimat yang ramah dan mudah dimengerti pengguna.
   static String pesanRamah(Object error) {
     if (error is AuthException) {
       final pesan = error.message.toLowerCase();
@@ -141,6 +157,27 @@ class LayananAuth {
         return 'Terlalu sering mencoba. Tunggu sebentar lalu ulangi.';
       }
       return error.message;
+    }
+
+    if (error is PlatformException) {
+      final teks = error.toString().toLowerCase();
+      final detail = (error.message ?? '').toLowerCase();
+
+      if (teks.contains('10') || detail.contains('developer_error')) {
+        return 'Konfigurasi Google Sign-In (SHA-1/Client ID) belum terdaftar untuk APK ini.';
+      }
+      if (teks.contains('12500') || detail.contains('sign_in_failed')) {
+        return 'Gagal masuk via Google Play Services. Pastikan akun Google aktif di HP.';
+      }
+      if (teks.contains('canceled') ||
+          teks.contains('cancelled') ||
+          detail.contains('cancel')) {
+        return 'Proses masuk dengan Google dibatalkan.';
+      }
+      if (teks.contains('network') || detail.contains('network')) {
+        return 'Tidak dapat terhubung ke server Google.';
+      }
+      return 'Gagal masuk dengan Google: ${error.message ?? error.code}';
     }
 
     final teks = error.toString();

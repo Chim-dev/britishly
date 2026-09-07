@@ -1,5 +1,6 @@
-package com.example.frontend
+package com.britishly.app
 
 import io.flutter.embedding.android.FlutterActivity
 
 class MainActivity : FlutterActivity()
+
