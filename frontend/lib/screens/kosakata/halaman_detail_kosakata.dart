@@ -241,6 +241,7 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
               return ChoiceChip(
                 label: Text(s.label),
                 selected: aktif,
+                showCheckmark: false,
                 avatar: Icon(Icons.circle, size: 9, color: warnaStatus(s)),
                 onSelected: (_) {
                   setState(() => _status = s);

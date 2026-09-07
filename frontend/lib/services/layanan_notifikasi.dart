@@ -3,6 +3,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'layanan_kata_harian.dart';
+
 /// Layanan Notifikasi Lokal (Local Scheduled Notifications).
 ///
 /// Bertanggung jawab menjadwalkan notifikasi "Kata Hari Ini" setiap hari
@@ -88,36 +90,17 @@ class LayananNotifikasi {
     }
   }
 
-  /// Menjadwalkan notifikasi berulang setiap hari pada pukul 08:00 pagi.
-  ///
-  /// Jika [kata] disediakan, notifikasi akan mencantumkan kata tersebut secara spesifik.
+  /// Menjadwalkan notifikasi kata harian untuk hari ini dan hari-hari berikutnya pada pukul 08:00 pagi.
+  /// Setiap notifikasi secara eksplisit mencantumkan kata spesifik hari tersebut.
   Future<void> jadwalkanKataHarian({String? kata}) async {
     if (kIsWeb) return;
     if (!_diinisialisasi) await inisialisasi();
 
     try {
       final sekarang = tz.TZDateTime.now(tz.local);
-      var waktuJadwal = tz.TZDateTime(
-        tz.local,
-        sekarang.year,
-        sekarang.month,
-        sekarang.day,
-        8, // Jam 08:00 pagi
-        0,
-      );
 
-      // Jika jam 8 pagi hari ini sudah lewat, jadwalkan untuk besok pagi
-      if (waktuJadwal.isBefore(sekarang)) {
-        waktuJadwal = waktuJadwal.add(const Duration(days: 1));
-      }
-
-      final judul = (kata != null && kata.trim().isNotEmpty)
-          ? 'Kata Hari Ini: "${kata.trim()}" 🇬🇧'
-          : 'Kata Hari Ini dari Britishly 🇬🇧';
-
-      final isi = (kata != null && kata.trim().isNotEmpty)
-          ? 'Ketuk untuk melihat arti, pelafalan audio, dan contoh penggunaannya!'
-          : 'Yuk buka aplikasi untuk memperluas kosakata bahasa Inggrismu hari ini!';
+      // Batalkan jadwal lama agar tidak terjadi duplikasi
+      await batalkanNotifikasiHarian();
 
       const androidDetails = AndroidNotificationDetails(
         channelId,
@@ -128,26 +111,52 @@ class LayananNotifikasi {
         icon: '@mipmap/ic_launcher',
       );
 
-      await _plugin.zonedSchedule(
-        id: idNotifikasiHarian,
-        title: judul,
-        body: isi,
-        scheduledDate: waktuJadwal,
-        notificationDetails: const NotificationDetails(android: androidDetails),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time,
-        payload: 'kata_harian',
-      );
+      // Jadwalkan untuk 7 hari ke depan pada jam 08:00 pagi
+      for (int i = 0; i < 7; i++) {
+        final waktuJadwal = tz.TZDateTime(
+          tz.local,
+          sekarang.year,
+          sekarang.month,
+          sekarang.day + i,
+          8, // Jam 08:00 pagi
+          0,
+        );
+
+        // Jika untuk hari ini (i == 0) dan jam 8 pagi sudah lewat, lewati hari ini
+        if (waktuJadwal.isBefore(sekarang)) {
+          continue;
+        }
+
+        final dt = DateTime(sekarang.year, sekarang.month, sekarang.day + i);
+        final String kataSpesifik = (i == 0 && kata != null && kata.trim().isNotEmpty)
+            ? kata.trim()
+            : LayananKataHarian.kataUntukTanggal(dt);
+
+        final judul = 'Kata Hari Ini: "$kataSpesifik" 🇬🇧';
+        const isi = 'Yuk pelajari arti, pelafalan audio, dan contoh penggunaannya!';
+
+        await _plugin.zonedSchedule(
+          id: idNotifikasiHarian + i,
+          title: judul,
+          body: isi,
+          scheduledDate: waktuJadwal,
+          notificationDetails: const NotificationDetails(android: androidDetails),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: 'kata_harian:$kataSpesifik',
+        );
+      }
     } catch (e) {
       debugPrint('Gagal menjadwalkan notifikasi harian: $e');
     }
   }
 
-  /// Membatalkan jadwal notifikasi harian jika pengguna ingin mematikan notifikasi.
+  /// Membatalkan seluruh jadwal notifikasi harian yang terdaftar.
   Future<void> batalkanNotifikasiHarian() async {
     if (kIsWeb) return;
     try {
-      await _plugin.cancel(id: idNotifikasiHarian);
+      for (int i = 0; i < 10; i++) {
+        await _plugin.cancel(id: idNotifikasiHarian + i);
+      }
     } catch (_) {}
   }
 }

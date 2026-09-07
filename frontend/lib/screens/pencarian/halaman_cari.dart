@@ -9,6 +9,7 @@ import '../../models/hasil_kamus.dart';
 import '../../models/sinonim.dart';
 import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kosakata.dart';
+import '../../widgets/kartu_penjelasan_ai.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
 
@@ -609,52 +610,8 @@ class _HalamanCariState extends State<HalamanCari> {
         ),
         const SizedBox(height: 16),
 
-        // Panduan Kapan Harus Menggunakan Kata Ini (Bahasa Indonesia)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: TemaBritishly.hijauSamar.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: TemaBritishly.hijau.withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.tips_and_updates_rounded,
-                    size: 16,
-                    color: TemaBritishly.hijau,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'KAPAN HARUS MENGGUNAKAN?',
-                    style: TemaBritishly.labelBagian.copyWith(
-                      fontSize: 10.5,
-                      color: TemaBritishly.hijau,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                PanduanNuansa.tipsPenggunaan(
-                  hasil.kata,
-                  definisiInggris: hasil.definisiUtama,
-                ),
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  height: 1.5,
-                  color: TemaBritishly.tinta,
-                ),
-              ),
-            ],
-          ),
-        ),
+        // Penjelasan Cerdas AI (On-Demand dengan Fallback Cepat)
+        KartuPenjelasanAi(kata: hasil.kata),
         const SizedBox(height: 16),
 
         // Definisi per jenis kata
@@ -937,6 +894,7 @@ class _HalamanCariState extends State<HalamanCari> {
                 child: ChoiceChip(
                   label: Text(kat),
                   selected: aktif,
+                  showCheckmark: false,
                   onSelected: (_) {
                     setState(() {
                       _filterKategoriAkronim = kat;

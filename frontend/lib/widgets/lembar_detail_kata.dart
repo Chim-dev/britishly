@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/panduan_nuansa.dart';
 import '../core/penanda_perubahan.dart';
 import '../core/tema.dart';
 import '../models/hasil_kamus.dart';
@@ -222,54 +221,6 @@ class _IsiLembarDetailKataState extends State<_IsiLembarDetailKata> {
                     ),
                   )
                 else if (_hasil != null) ...[
-                  // Panduan Nuansa & Tips Penggunaan
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: TemaBritishly.hijauSamar.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: TemaBritishly.hijau.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.tips_and_updates_rounded,
-                              size: 15,
-                              color: TemaBritishly.hijau,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'NUANSA & CARA PAKAI',
-                              style: TemaBritishly.labelBagian.copyWith(
-                                fontSize: 10,
-                                color: TemaBritishly.hijau,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          PanduanNuansa.tipsPenggunaan(
-                            _hasil!.kata,
-                            definisiInggris: _hasil!.definisiUtama,
-                          ),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            height: 1.45,
-                            color: TemaBritishly.tinta,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
                   // Definisi
                   for (final makna in _hasil!.makna) ...[
                     Container(

@@ -324,8 +324,8 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
         _daftar.isNotEmpty && _idTerpilih.length == _daftar.length;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: TemaBritishly.hijauSamar,
         borderRadius: BorderRadius.circular(16),
@@ -336,9 +336,12 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
       child: Row(
         children: [
           IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
             icon: const Icon(
               Icons.close_rounded,
-              size: 22,
+              size: 20,
               color: TemaBritishly.hijau,
             ),
             tooltip: 'Batalkan Pilihan',
@@ -349,16 +352,22 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
             '${_idTerpilih.length} dipilih',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 15,
+              fontSize: 14,
               color: TemaBritishly.hijau,
             ),
           ),
           const Spacer(),
           TextButton.icon(
             onPressed: _pilihSemuaAtauLepas,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
             icon: Icon(
               semuaTerpilih ? Icons.deselect_rounded : Icons.select_all_rounded,
-              size: 18,
+              size: 17,
               color: TemaBritishly.hijau,
             ),
             label: Text(
@@ -366,18 +375,22 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: TemaBritishly.hijau,
-                fontSize: 13,
+                fontSize: 12.5,
               ),
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 6),
           IconButton.filled(
             onPressed: _idTerpilih.isEmpty ? null : _hapusTerpilih,
             style: IconButton.styleFrom(
               backgroundColor: TemaBritishly.merah,
               foregroundColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.all(7),
+              minimumSize: const Size(34, 34),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            icon: const Icon(Icons.delete_rounded, size: 20),
+            icon: const Icon(Icons.delete_rounded, size: 18),
             tooltip: 'Hapus yang dipilih',
           ),
         ],

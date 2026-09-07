@@ -10,6 +10,7 @@ import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kata_harian.dart';
 import '../../services/layanan_kosakata.dart';
 import '../../services/layanan_notifikasi.dart';
+import '../../widgets/kartu_penjelasan_ai.dart';
 import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
@@ -79,7 +80,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         _sudahDisimpan = tersimpan;
       });
 
-      // Jadwalkan pengingat harian dengan kata hari ini
+      // Jadwalkan pengingat harian
       LayananNotifikasi.instance.jadwalkanKataHarian(kata: hasil.kata);
     } catch (e) {
       if (!mounted) return;
@@ -504,55 +505,12 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                       TextStyle(color: TemaBritishly.tintaPudar, fontSize: 14),
                 ),
 
-              // -------------------------------------------------------------
-              // FITUR 1: Kapan Harus Menggunakan Kata Ini? (Usage & Nuance)
-              // -------------------------------------------------------------
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: TemaBritishly.hijauSamar.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: TemaBritishly.hijau.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.tips_and_updates_rounded,
-                          size: 16,
-                          color: TemaBritishly.hijau,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'KAPAN HARUS MENGGUNAKAN?',
-                          style: TemaBritishly.labelBagian.copyWith(
-                            fontSize: 10.5,
-                            color: TemaBritishly.hijau,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _catatanPenggunaan(kata.kata),
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        height: 1.5,
-                        color: TemaBritishly.tinta,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Penjelasan Pintar AI (Bilingual & On-Demand)
+              const SizedBox(height: 16),
+              KartuPenjelasanAi(kata: kata.kata),
 
               // -------------------------------------------------------------
-              // FITUR 2: Contoh Penggunaan
+              // FITUR: Contoh Penggunaan
               // -------------------------------------------------------------
               if (kata.contoh.isNotEmpty) ...[
                 const SizedBox(height: 16),
@@ -728,11 +686,6 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
     ];
     final namaBulan = bulan[(dt.month - 1).clamp(0, 11)];
     return '${dt.day} $namaBulan ${dt.year}';
-  }
-
-  /// Menghasilkan catatan rasa bahasa & kapan harus menggunakan kata tersebut.
-  String _catatanPenggunaan(String kata) {
-    return PanduanNuansa.tipsPenggunaan(kata, definisiInggris: _kata?.definisi);
   }
 }
 

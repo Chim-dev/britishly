@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/konstanta.dart';
-import '../models/hasil_kamus.dart';
 import 'layanan_kamus.dart';
 
 /// Kata hari ini beserta panjang streak.
@@ -38,6 +37,15 @@ class LayananKataHarian {
   static final LayananKataHarian instance = LayananKataHarian._();
 
   SupabaseClient get _klien => Supabase.instance.client;
+
+  /// Menghasilkan kata kurasi deterministik untuk tanggal tertentu dari daftar kSumberKataHarian.
+  /// Menjamin notifikasi kata harian dan layar aplikasi selalu 100% cocok.
+  static String kataUntukTanggal(DateTime dt) {
+    final awalTahun = DateTime(dt.year, 1, 1);
+    final hariKe = dt.difference(awalTahun).inDays;
+    final indeks = (hariKe + (dt.year % 10) * 11) % kSumberKataHarian.length;
+    return kSumberKataHarian[indeks.abs()];
+  }
 
   Future<KataHarian> ambilHariIni() async {
     final hariIni = DateTime.now();
@@ -81,17 +89,19 @@ class LayananKataHarian {
         if (contohTampil.isEmpty) contohTampil = def.contohUtama;
       } catch (_) {}
     } else {
-      // 2. Hari baru -> ambil kata acak dinamis dari koleksi 100.000+ kata Datamuse API!
-      HasilKamus? kataAcak;
-      try {
-        kataAcak = await LayananKamus.instance.ambilKataAcakDinamis();
-      } catch (_) {}
+      // 2. Hari baru -> gunakan kata kurasi deterministik yang selaras 100% dengan jadwal notifikasi
+      kataTampil = kataUntukTanggal(hariIni);
 
-      kataTampil = kataAcak?.kata ??
-          kSumberKataHarian[hariIni.day % kSumberKataHarian.length];
-      definisiTampil = kataAcak?.definisiUtama ?? '';
-      contohTampil = kataAcak?.contohUtama ?? '';
-      fonetikTampil = kataAcak?.fonetik ?? '';
+      try {
+        final def = await LayananKamus.instance.cariDefinisi(kataTampil);
+        definisiTampil = def.definisiUtama;
+        contohTampil = def.contohUtama;
+        fonetikTampil = def.fonetik;
+      } catch (_) {
+        definisiTampil = '';
+        contohTampil = '';
+        fonetikTampil = '';
+      }
 
       // Simpan kata unik hari ini ke database Supabase
       try {
