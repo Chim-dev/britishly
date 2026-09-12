@@ -16,6 +16,8 @@ import 'package:frontend/services/layanan_gemini.dart';
 import 'package:frontend/services/layanan_kamus.dart';
 import 'package:frontend/services/layanan_kata_harian.dart';
 import 'package:frontend/services/layanan_kosakata.dart';
+import 'package:frontend/widgets/dialog_animasi_streak.dart';
+import 'package:frontend/widgets/dialog_hapus_akun.dart';
 import 'package:frontend/widgets/logo_google.dart';
 import 'package:frontend/widgets/pemilih_kategori.dart';
 
@@ -231,4 +233,172 @@ void main() {
       expect(find.byIcon(Icons.add_rounded), findsNothing);
     });
   });
+
+  group('Fitur Hapus Akun', () {
+    testWidgets(
+        'DialogHapusAkun menampilkan peringatan, tombol X membatalkan penghapusan',
+        (tester) async {
+      bool? hasilDialog;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async {
+                  hasilDialog = await tampilkanDialogHapusAkun(context);
+                },
+                child: const Text('Buka Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Buka Dialog'));
+      await tester.pumpAndSettle();
+
+      // Memastikan dialog, judul, dan konsekuensi tampil
+      expect(find.text('Hapus Akun Permanen?'), findsOneWidget);
+      expect(find.textContaining('Tindakan ini tidak dapat dibatalkan'), findsOneWidget);
+      expect(find.textContaining('Seluruh kata tersimpan'), findsOneWidget);
+
+      // Tombol X ada di header
+      final tombolX = find.byKey(const Key('tombol_tutup_dialog_hapus_akun'));
+      expect(tombolX, findsOneWidget);
+
+      // Tombol hapus awal mula dalam kondisi nonaktif (disabled)
+      final tombolHapus = tester.widget<FilledButton>(
+        find.byKey(const Key('tombol_eksekusi_hapus_akun')),
+      );
+      expect(tombolHapus.onPressed, isNull);
+
+      // Klik tombol 'X' untuk batal
+      await tester.tap(tombolX);
+      await tester.pumpAndSettle();
+
+      // Dialog tertutup dan hasil false
+      expect(find.text('Hapus Akun Permanen?'), findsNothing);
+      expect(hasilDialog, isFalse);
+    });
+
+    testWidgets(
+        'Checklist persetujuan mengaktifkan tombol Hapus Akun dan mengeksekusi callback',
+        (tester) async {
+      bool aksiHapusDipanggil = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => tampilkanDialogHapusAkun(
+                  context,
+                  onKonfirmasiHapus: () async {
+                    aksiHapusDipanggil = true;
+                  },
+                ),
+                child: const Text('Buka Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Buka Dialog'));
+      await tester.pumpAndSettle();
+
+      // Awal mula tombol hapus disabled
+      var tombolHapus = tester.widget<FilledButton>(
+        find.byKey(const Key('tombol_eksekusi_hapus_akun')),
+      );
+      expect(tombolHapus.onPressed, isNull);
+
+      // Klik checklist persetujuan
+      await tester.tap(find.byKey(const Key('checklist_konfirmasi_hapus_akun')));
+      await tester.pumpAndSettle();
+
+      // Sekarang tombol hapus aktif
+      tombolHapus = tester.widget<FilledButton>(
+        find.byKey(const Key('tombol_eksekusi_hapus_akun')),
+      );
+      expect(tombolHapus.onPressed, isNotNull);
+
+      // Tekan tombol Hapus Akun
+      await tester.tap(find.byKey(const Key('tombol_eksekusi_hapus_akun')));
+      await tester.pumpAndSettle();
+
+      // Callback dieksekusi, dialog tertutup, dan notifikasi sukses muncul
+      expect(aksiHapusDipanggil, isTrue);
+      expect(find.text('Hapus Akun Permanen?'), findsNothing);
+      expect(
+        find.text('Akun dan seluruh data Anda telah berhasil dihapus.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('DialogAnimasiStreak', () {
+    testWidgets('menampilkan perayaan streak aktif', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: DialogAnimasiStreak(
+              tipe: TipeStreakDialog.aktif,
+              streak: 5,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('STREAK AKTIF'), findsOneWidget);
+      expect(find.text('Streak Belajar Terjaga! 🔥'), findsOneWidget);
+      expect(find.text('5 Hari Berturut-turut'), findsOneWidget);
+      expect(find.text('Pelajari Kata Hari Ini ✨'), findsOneWidget);
+      expect(find.byIcon(Icons.local_fire_department_rounded), findsWidgets);
+    });
+
+    testWidgets('menampilkan pesan persuasif saat streak terputus / mengulang',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: DialogAnimasiStreak(
+              tipe: TipeStreakDialog.terputus,
+              streak: 1,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('SEMANGAT BARU'), findsOneWidget);
+      expect(find.text('Streak Mengulang dari Hari ke-1 🌱'), findsOneWidget);
+      expect(find.text('Hari ke-1'), findsOneWidget);
+      expect(find.textContaining('Jangan patah semangat'), findsOneWidget);
+      expect(find.textContaining('Nyalakan Kembali Apiku! 🔥'), findsOneWidget);
+      expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    });
+
+    testWidgets('menampilkan pesan awal untuk pengguna baru', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: DialogAnimasiStreak(
+              tipe: TipeStreakDialog.awal,
+              streak: 1,
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 700));
+
+      expect(find.text('MULAI STREAK'), findsOneWidget);
+      expect(find.text('Langkah Pertama Dimulai! 🚀'), findsOneWidget);
+      expect(find.text('Mulai Belajar Sekarang 🚀'), findsOneWidget);
+    });
+  });
 }
+
+

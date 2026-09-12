@@ -89,7 +89,8 @@ create policy "daily_words_delete_own"
 create or replace function public.set_daily_word(
   p_word        text,
   p_definition  text default null,
-  p_example     text default null
+  p_example     text default null,
+  p_date        date default current_date
 )
 returns public.daily_words
 language plpgsql
@@ -97,17 +98,18 @@ security invoker
 set search_path = public
 as $$
 declare
-  v_user_id uuid := auth.uid();
-  v_row     public.daily_words;
+  v_user_id     uuid := auth.uid();
+  v_row         public.daily_words;
+  v_target_date date := coalesce(p_date, current_date);
 begin
   if v_user_id is null then
     raise exception 'Tidak terautentikasi.' using errcode = '28000';
   end if;
 
-  -- Sudah ada kata untuk hari ini? Kembalikan yang itu.
+  -- Sudah ada kata untuk tanggal ini? Kembalikan yang itu.
   select * into v_row
   from public.daily_words
-  where user_id = v_user_id and shown_date = current_date;
+  where user_id = v_user_id and shown_date = v_target_date;
 
   if found then
     return v_row;
@@ -118,7 +120,7 @@ begin
   end if;
 
   insert into public.daily_words (user_id, word, definition, example, shown_date)
-  values (v_user_id, trim(p_word), p_definition, p_example, current_date)
+  values (v_user_id, trim(p_word), p_definition, p_example, v_target_date)
   on conflict (user_id, shown_date) do nothing
   returning * into v_row;
 
@@ -126,7 +128,7 @@ begin
   if v_row is null then
     select * into v_row
     from public.daily_words
-    where user_id = v_user_id and shown_date = current_date;
+    where user_id = v_user_id and shown_date = v_target_date;
   end if;
 
   return v_row;
@@ -134,7 +136,7 @@ end;
 $$;
 
 comment on function public.set_daily_word is
-  'Mengambil kata harian user hari ini; membuat baru bila belum ada.';
+  'Mengambil kata harian user hari ini (berdasarkan tanggal lokal); membuat baru bila belum ada.';
 
 
 -- ------------------------------------------------------------
@@ -147,18 +149,21 @@ comment on function public.set_daily_word is
 --   - Terakhir buka hari ini atau kemarin  -> streak masih hidup
 --   - Terakhir buka >= 2 hari lalu         -> streak putus, kembali 0
 -- ------------------------------------------------------------
-create or replace function public.get_streak()
+create or replace function public.get_streak(
+  p_today date default current_date
+)
 returns integer
 language plpgsql
 security invoker
 set search_path = public
 as $$
 declare
-  v_user_id  uuid := auth.uid();
-  v_streak   integer := 0;
-  v_last     date;
-  v_expected date;
-  v_row      date;
+  v_user_id     uuid := auth.uid();
+  v_streak      integer := 0;
+  v_last        date;
+  v_expected    date;
+  v_row         date;
+  v_target_date date := coalesce(p_today, current_date);
 begin
   if v_user_id is null then
     return 0;
@@ -168,8 +173,8 @@ begin
   from public.daily_words
   where user_id = v_user_id;
 
-  -- Belum pernah sama sekali, atau sudah bolong lebih dari 1 hari
-  if v_last is null or v_last < current_date - 1 then
+  -- Belum pernah sama sekali, atau sudah bolong lebih dari 1 hari berdasarkan waktu lokal user
+  if v_last is null or v_last < v_target_date - 1 then
     return 0;
   end if;
 
@@ -191,4 +196,5 @@ end;
 $$;
 
 comment on function public.get_streak is
-  'Menghitung jumlah hari beruntun user membuka kata harian.';
+  'Menghitung jumlah hari beruntun user membuka kata harian berdasarkan tanggal lokal HP.';
+

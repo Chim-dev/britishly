@@ -106,7 +106,11 @@ class LayananKataHarian {
       // Simpan kata unik hari ini ke database Supabase
       try {
         baris = await _panggilSetDailyWord(
-            kataTampil, definisiTampil, contohTampil);
+          kataTampil,
+          definisiTampil,
+          contohTampil,
+          tanggalTeks: hariIniTeks,
+        );
       } catch (e) {
         final teks = e.toString().toLowerCase();
         if (teks.contains('jwt') ||
@@ -115,15 +119,19 @@ class LayananKataHarian {
           try {
             await _klien.auth.refreshSession();
             baris = await _panggilSetDailyWord(
-                kataTampil, definisiTampil, contohTampil);
+              kataTampil,
+              definisiTampil,
+              contohTampil,
+              tanggalTeks: hariIniTeks,
+            );
           } catch (_) {}
         }
       }
     }
 
-    // Ambil perhitungan streak
+    // Ambil perhitungan streak berdasarkan waktu lokal HP
     try {
-      streak = await ambilStreak();
+      streak = await ambilStreak(tanggalTeks: hariIniTeks);
     } catch (_) {}
 
     return KataHarian(
@@ -140,16 +148,35 @@ class LayananKataHarian {
   Future<Map<String, dynamic>> _panggilSetDailyWord(
     String kata,
     String definisi,
-    String contoh,
-  ) async {
-    final hasil = await _klien.rpc(
-      'set_daily_word',
-      params: {
+    String contoh, {
+    String? tanggalTeks,
+  }) async {
+    dynamic hasil;
+    try {
+      final params = <String, dynamic>{
         'p_word': kata,
         'p_definition': definisi.isEmpty ? null : definisi,
         'p_example': contoh.isEmpty ? null : contoh,
-      },
-    );
+      };
+      if (tanggalTeks != null) {
+        params['p_date'] = tanggalTeks;
+      }
+      hasil = await _klien.rpc('set_daily_word', params: params);
+    } catch (_) {
+      // Fallback jika database Supabase belum di-update dengan parameter p_date
+      if (tanggalTeks != null) {
+        hasil = await _klien.rpc(
+          'set_daily_word',
+          params: {
+            'p_word': kata,
+            'p_definition': definisi.isEmpty ? null : definisi,
+            'p_example': contoh.isEmpty ? null : contoh,
+          },
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     // PostgREST bisa mengembalikan objek tunggal atau daftar berisi satu
     // objek, tergantung versi. Ditangani dua-duanya.
@@ -160,8 +187,24 @@ class LayananKataHarian {
     return {};
   }
 
-  Future<int> ambilStreak() async {
-    final hasil = await _klien.rpc('get_streak');
-    return hasil is num ? hasil.toInt() : 0;
+  Future<int> ambilStreak({String? tanggalTeks}) async {
+    final tgl = tanggalTeks ?? () {
+      final now = DateTime.now();
+      return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    }();
+
+    try {
+      final hasil = await _klien.rpc('get_streak', params: {'p_today': tgl});
+      return hasil is num ? hasil.toInt() : 0;
+    } catch (_) {
+      // Fallback jika database Supabase belum di-update dengan parameter p_today
+      try {
+        final hasil = await _klien.rpc('get_streak');
+        return hasil is num ? hasil.toInt() : 0;
+      } catch (_) {
+        return 0;
+      }
+    }
   }
 }
+

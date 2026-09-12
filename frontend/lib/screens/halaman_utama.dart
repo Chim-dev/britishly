@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/tema.dart';
 import '../services/layanan_auth.dart';
 import '../services/layanan_notifikasi.dart';
+import '../widgets/dialog_hapus_akun.dart';
 import 'harian/halaman_kata_harian.dart';
 import 'kosakata/halaman_kosakata.dart';
 import 'pencarian/halaman_cari.dart';
@@ -101,80 +102,110 @@ class _HalamanUtamaState extends State<HalamanUtama> {
               const SizedBox(height: 24),
               const Divider(),
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  final konfirmasi = await showDialog<bool>(
-                    context: context,
-                    builder: (dCtx) => AlertDialog(
-                      title: const Text('Keluar dari Britishly?'),
-                      content: const Text(
-                        'Kamu perlu masuk kembali untuk membuka kamus dan akronim pribadimu.',
-                      ),
-                      actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      actions: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: () => Navigator.pop(dCtx, false),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Batal',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: () => Navigator.pop(dCtx, true),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: skema.error,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Keluar',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final konfirmasi = await showDialog<bool>(
+                      context: context,
+                      builder: (dCtx) => AlertDialog(
+                        title: const Text('Keluar dari Britishly?'),
+                        content: const Text(
+                          'Kamu perlu masuk kembali untuk membuka kamus dan akronim pribadimu.',
                         ),
-                      ],
-                    ),
-                  );
+                        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        actions: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () => Navigator.pop(dCtx, false),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2563EB),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Batal',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed: () => Navigator.pop(dCtx, true),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: skema.error,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Keluar',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
 
-                  if (konfirmasi == true) {
-                    await LayananAuth.instance.keluar();
-                  }
-                },
-                icon: Icon(Icons.logout_rounded, size: 18, color: skema.error),
-                label: Text(
-                  'Keluar dari Akun',
-                  style: TextStyle(color: skema.error, fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: skema.error.withValues(alpha: 0.3)),
+                    if (konfirmasi == true) {
+                      await LayananAuth.instance.keluar();
+                    }
+                  },
+                  icon: const Icon(Icons.logout_rounded, size: 18),
+                  label: const Text('Keluar dari Akun'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: TemaBritishly.tinta,
+                    side: const BorderSide(color: TemaBritishly.kremGaris),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: const Key('tombol_buka_dialog_hapus_akun'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    tampilkanDialogHapusAkun(context);
+                  },
+                  icon: Icon(Icons.delete_forever_rounded, size: 18, color: skema.error),
+                  label: Text(
+                    'Hapus Akun',
+                    style: TextStyle(color: skema.error, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: skema.error,
+                    side: BorderSide(color: skema.error.withValues(alpha: 0.35)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
             ],
           ),
         ),

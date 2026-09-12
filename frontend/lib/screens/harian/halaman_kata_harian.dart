@@ -10,6 +10,7 @@ import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kata_harian.dart';
 import '../../services/layanan_kosakata.dart';
 import '../../services/layanan_notifikasi.dart';
+import '../../widgets/dialog_animasi_streak.dart';
 import '../../widgets/kartu_penjelasan_ai.dart';
 import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
@@ -82,6 +83,13 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
 
       // Jadwalkan pengingat harian
       LayananNotifikasi.instance.jadwalkanKataHarian(kata: hasil.kata);
+
+      // Tampilkan animasi streak bila hari baru (hanya 1x per hari saat awal masuk)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _cekDanTampilkanAnimasiStreak(hasil);
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _pesanError = LayananKosakata.pesanRamah(e));
@@ -89,6 +97,51 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
       if (mounted) setState(() => _sedangMuat = false);
     }
   }
+
+  static const String _kunciTanggalStreakTampil = 'streak_dialog_terakhir_tanggal';
+  static const String _kunciNilaiStreakSebelumnya = 'streak_nilai_sebelumnya';
+
+  Future<void> _cekDanTampilkanAnimasiStreak(KataHarian kata) async {
+    final tglTeks =
+        '${kata.tanggal.year}-${kata.tanggal.month.toString().padLeft(2, '0')}-${kata.tanggal.day.toString().padLeft(2, '0')}';
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tanggalTerakhir = prefs.getString(_kunciTanggalStreakTampil);
+
+      // Hanya tampilkan 1 kali dalam sehari pada saat awal masuk kata baru
+      if (tanggalTerakhir == tglTeks) {
+        return;
+      }
+
+      final streakSebelumnya = prefs.getInt(_kunciNilaiStreakSebelumnya);
+      final streakSekarang = kata.streak;
+
+      TipeStreakDialog tipe;
+      if (streakSebelumnya != null && streakSebelumnya > 1 && streakSekarang <= 1) {
+        // Streak putus/terulang
+        tipe = TipeStreakDialog.terputus;
+      } else if (streakSekarang > 1) {
+        // Streak aktif / terjaga
+        tipe = TipeStreakDialog.aktif;
+      } else {
+        // Pengguna baru atau awal mulai (streak 1)
+        tipe = TipeStreakDialog.awal;
+      }
+
+      // Simpan agar tidak muncul berulang kali di hari yang sama
+      await prefs.setString(_kunciTanggalStreakTampil, tglTeks);
+      await prefs.setInt(_kunciNilaiStreakSebelumnya, streakSekarang);
+
+      if (!mounted) return;
+      await tampilkanDialogStreak(
+        context,
+        tipe: tipe,
+        streak: streakSekarang,
+      );
+    } catch (_) {}
+  }
+
 
   Future<void> _bukaMakna() async {
     final kata = _kata;

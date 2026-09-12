@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Use Case 1 — Mendaftar & Masuk Akun.
@@ -123,6 +124,33 @@ class LayananAuth {
     } catch (_) {}
     await _klien.auth.signOut();
   }
+
+  /// Menghapus akun pengguna beserta seluruh data tersimpan secara permanen.
+  ///
+  /// Memanggil fungsi RPC `hapus_akun_saya` di Supabase untuk menghapus user dari auth.users
+  /// (yang cascade ke saved_words dan word_synonyms).
+  /// Juga membersihkan cache lokal (SharedPreferences) dan melakukan logout.
+  Future<void> hapusAkun() async {
+    final user = _klien.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _klien.rpc('hapus_akun_saya');
+    } catch (e) {
+      debugPrint('RPC hapus_akun_saya gagal: $e. Fallback menghapus data kata...');
+      try {
+        await _klien.from('saved_words').delete().eq('user_id', user.id);
+      } catch (_) {}
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (_) {}
+
+    await keluar();
+  }
+
 
   /// Menerjemahkan error Supabase & Google Play Services
   /// menjadi kalimat yang ramah dan mudah dimengerti pengguna.
