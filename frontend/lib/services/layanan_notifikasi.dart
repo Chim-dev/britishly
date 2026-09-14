@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -39,10 +40,18 @@ class LayananNotifikasi {
     }
 
     try {
-      // Inisialisasi database zona waktu lokal
+      // Inisialisasi database zona waktu
       tz.initializeTimeZones();
 
-      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      // Sinkronisasi ke zona waktu lokal perangkat HP pengguna
+      try {
+        final String namaZona = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(namaZona));
+      } catch (e) {
+        debugPrint('Catatan: Gagal menyetel timezone lokal ($e), menggunakan zona default.');
+      }
+
+      const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
       const initSettings = InitializationSettings(android: androidInit);
 
       await _plugin.initialize(
@@ -90,7 +99,7 @@ class LayananNotifikasi {
     }
   }
 
-  /// Menjadwalkan notifikasi kata harian untuk hari ini dan hari-hari berikutnya pada pukul 08:00 pagi.
+  /// Menjadwalkan notifikasi kata harian untuk hari-hari berikutnya tepat pada pukul 00:00 (12 malam waktu lokal HP pengguna).
   /// Setiap notifikasi secara eksplisit mencantumkan kata spesifik hari tersebut.
   Future<void> jadwalkanKataHarian({String? kata}) async {
     if (kIsWeb) return;
@@ -102,27 +111,36 @@ class LayananNotifikasi {
       // Batalkan jadwal lama agar tidak terjadi duplikasi
       await batalkanNotifikasiHarian();
 
+      // Gunakan exact alarm bila diizinkan agar tidak tertahan Doze Mode malam hari
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final bool canExact =
+          await androidPlugin?.canScheduleExactNotifications() ?? false;
+      final scheduleMode = canExact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+
       const androidDetails = AndroidNotificationDetails(
         channelId,
         channelName,
         channelDescription: channelDesc,
         importance: Importance.high,
         priority: Priority.high,
-        icon: '@mipmap/ic_launcher',
+        icon: '@mipmap/launcher_icon',
       );
 
-      // Jadwalkan untuk 7 hari ke depan pada jam 08:00 pagi
-      for (int i = 0; i < 7; i++) {
+      // Jadwalkan untuk 7 hari ke depan tepat pada jam 00:00 (12 malam waktu lokal pengguna)
+      for (int i = 0; i <= 7; i++) {
         final waktuJadwal = tz.TZDateTime(
           tz.local,
           sekarang.year,
           sekarang.month,
           sekarang.day + i,
-          8, // Jam 08:00 pagi
+          0, // Jam 00:00 (12 malam waktu lokal pengguna)
           0,
         );
 
-        // Jika untuk hari ini (i == 0) dan jam 8 pagi sudah lewat, lewati hari ini
+        // Jika jam 12 malam untuk hari ini (i == 0) sudah lewat, lewati
         if (waktuJadwal.isBefore(sekarang)) {
           continue;
         }
@@ -141,7 +159,7 @@ class LayananNotifikasi {
           body: isi,
           scheduledDate: waktuJadwal,
           notificationDetails: const NotificationDetails(android: androidDetails),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          androidScheduleMode: scheduleMode,
           payload: 'kata_harian:$kataSpesifik',
         );
       }
@@ -154,7 +172,7 @@ class LayananNotifikasi {
   Future<void> batalkanNotifikasiHarian() async {
     if (kIsWeb) return;
     try {
-      for (int i = 0; i < 10; i++) {
+      for (int i = 0; i < 15; i++) {
         await _plugin.cancel(id: idNotifikasiHarian + i);
       }
     } catch (_) {}
