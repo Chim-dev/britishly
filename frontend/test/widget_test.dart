@@ -192,7 +192,12 @@ void main() {
       expect(exported['arti_indonesia'], 'penasaran, ingin tahu');
     });
 
-    test('LayananGemini - menangani ketiadaan API key secara aman', () async {
+    // Aplikasi sudah tidak memegang API key Gemini sama sekali — panggilannya
+    // lewat Edge Function Supabase. Yang dijaga di sini tetap sama: saat
+    // servernya tidak bisa dihubungi, kegagalannya harus berupa Exception yang
+    // bisa ditangani, bukan Error yang menembus penanganan di pemanggil.
+    test('LayananGemini - gagal dengan aman saat server tak terjangkau',
+        () async {
       expect(
         () => LayananGemini.instance.ambilPenjelasan('curious'),
         throwsA(isA<Exception>()),

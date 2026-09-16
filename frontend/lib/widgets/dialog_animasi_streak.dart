@@ -231,8 +231,8 @@ class _DialogAnimasiStreakState extends State<DialogAnimasiStreak>
               isAktif
                   ? 'Streak Belajar Terjaga! 🔥'
                   : isTerputus
-                      ? 'Streak Mengulang dari Hari ke-1 🌱'
-                      : 'Langkah Pertama Dimulai! 🚀',
+                      ? 'Streak Mengulang dari Hari ke-1'
+                      : 'Langkah Pertama Dimulai!',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 18,
@@ -279,7 +279,7 @@ class _DialogAnimasiStreakState extends State<DialogAnimasiStreak>
                       ? 'Pelajari Kata Hari Ini ✨'
                       : isTerputus
                           ? 'Nyalakan Kembali Apiku! 🔥'
-                          : 'Mulai Belajar Sekarang 🚀',
+                          : 'Mulai Belajar Sekarang ',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14.5,

@@ -1,18 +1,25 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/penjelasan_ai.dart';
 
-/// Exception ketika API key Gemini belum diisi di file .env
+/// Nama Edge Function di Supabase. Kodenya ada di
+/// `supabase/functions/jelaskan-kata/index.ts`
+const _namaFungsi = 'jelaskan-kata';
+
+/// Exception ketika GEMINI_API_KEY belum dipasang sebagai secret di Supabase.
+///
+/// Ini urusan pemilik aplikasi, bukan pengguna — dan tidak lagi bisa dicek
+/// dari sisi HP, karena key-nya memang tidak pernah sampai ke sini.
 class GeminiKunciBelumDiaturException implements Exception {
   const GeminiKunciBelumDiaturException();
   @override
   String toString() =>
-      'GEMINI_API_KEY belum dikonfigurasi di file .env aplikasi.';
+      'GEMINI_API_KEY belum dipasang sebagai secret di Supabase.';
 }
 
 /// Exception ketika kuota gratis per menit atau harian Gemini tercapai (HTTP 429)
@@ -23,7 +30,18 @@ class GeminiBatasKuotaException implements Exception {
       'Batas kuota harian AI tercapai atau server AI sedang padat.';
 }
 
-/// Exception ketika terjadi masalah jaringan atau timeout saat memanggil Gemini
+/// Exception ketika pengguna belum masuk.
+///
+/// Edge Function memverifikasi JWT, jadi penjelasan AI hanya tersedia untuk
+/// akun yang sudah login. Ini yang mencegah endpoint-nya dipakai orang lain
+/// sebagai layanan AI gratis atas tagihan pemilik aplikasi.
+class GeminiBelumMasukException implements Exception {
+  const GeminiBelumMasukException();
+  @override
+  String toString() => 'Masuk dulu untuk memakai penjelasan AI.';
+}
+
+/// Exception ketika terjadi masalah jaringan atau timeout.
 class GeminiKoneksiException implements Exception {
   const GeminiKoneksiException(this.pesan);
   final String pesan;
@@ -31,58 +49,29 @@ class GeminiKoneksiException implements Exception {
   String toString() => 'Koneksi ke server AI bermasalah: $pesan';
 }
 
-/// Layanan integrasi Google Gemini API untuk penjelasan kosakata cerdas.
+/// Layanan penjelasan kosakata cerdas.
+///
+/// CATATAN PENTING SOAL KEAMANAN
+/// Layanan ini TIDAK lagi memanggil Google Gemini secara langsung, dan tidak
+/// lagi memegang API key apa pun. Dulu key-nya dibaca dari `.env`, dan karena
+/// `.env` didaftarkan sebagai asset Flutter di pubspec.yaml, key itu ikut
+/// terbungkus apa adanya ke dalam APK — siapa pun yang meng-unzip APK bisa
+/// mengambilnya lalu memakai kuota billing Google milik pemilik aplikasi.
+///
+/// Sekarang panggilannya lewat Edge Function `jelaskan-kata` di Supabase.
+/// Key-nya hidup sebagai secret di server dan tidak pernah dikirim ke HP.
+///
+/// Yang tidak berubah: cache 2 tingkat di bawah ini. Justru makin berguna,
+/// karena setiap panggilan yang bisa dihindari berarti satu panggilan yang
+/// tidak memakan kuota.
 class LayananGemini {
   LayananGemini._();
 
   static final LayananGemini instance = LayananGemini._();
 
-  /// Model aktif yang berhasil digunakan (disimpan agar panggilan berikutnya instan tanpa perlu fallback)
-  String? _modelAktif;
+  SupabaseClient get _klien => Supabase.instance.client;
 
-  /// Getter model aktif saat ini
-  String get modelAktif => _modelAktif ?? _daftarModel.first;
-
-  /// Daftar model kandidat berdasarkan prioritas kecepatan dan ketersediaan di Google AI Studio
-  List<String> get _daftarModel {
-    final dariEnv = dotenv.env['GEMINI_MODEL']?.trim();
-    if (dariEnv != null && dariEnv.isNotEmpty) {
-      String normalisasi = dariEnv;
-      if (dariEnv == '2.5') normalisasi = 'gemini-2.5-flash';
-      if (dariEnv == '3.5') normalisasi = 'gemini-3.5-flash';
-      if (dariEnv == '3.6') normalisasi = 'gemini-3.6-flash';
-      if (dariEnv == '1.5') normalisasi = 'gemini-1.5-flash';
-
-      return [
-        normalisasi,
-        'gemini-flash-lite-latest',
-        'gemini-3.5-flash-lite',
-        'gemini-flash-latest',
-        'gemini-3.5-flash',
-      ];
-    }
-
-    if (_modelAktif != null) {
-      return [
-        _modelAktif!,
-        'gemini-flash-lite-latest',
-        'gemini-3.5-flash-lite',
-        'gemini-flash-latest',
-      ];
-    }
-
-    return const [
-      'gemini-flash-lite-latest',
-      'gemini-3.5-flash-lite',
-      'gemini-flash-latest',
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
-      'gemini-2.5-flash',
-      'gemini-1.5-flash',
-    ];
-  }
-
-  /// Cache memori agar kata yang baru dicari tidak perlu memanggil API lagi
+  /// Cache memori agar kata yang baru dicari tidak perlu memanggil server lagi
   final Map<String, PenjelasanAi> _cacheMemori = {};
 
   /// Awalan key dan batas jumlah entri di penyimpanan HP.
@@ -95,22 +84,13 @@ class LayananGemini {
   static const _kunciIndeksCache = 'cache_ai_indeks';
   static const _maksEntriCache = 200;
 
-  /// Mengambil API key dari .env
-  String? get _apiKey {
-    try {
-      final key = dotenv.env['GEMINI_API_KEY']?.trim();
-      if (key != null && key.isNotEmpty && !key.contains('xxxx')) {
-        return key;
-      }
-    } catch (_) {}
-    return null;
-  }
+  /// Batas waktu menunggu Edge Function. Dibuat lebih longgar daripada batas
+  /// per-model di server (12 detik), supaya server sempat mencoba model
+  /// cadangan sebelum aplikasi menyerah lebih dulu.
+  static const _batasWaktu = Duration(seconds: 30);
 
-  /// Mengecek apakah API key sudah terpasang
-  bool get adaKunci => _apiKey != null;
-
-  /// Meminta penjelasan kosakata cerdas dari Gemini AI.
-  /// Dilengkapi sistem 2-tier caching (Memori + SharedPreferences)
+  /// Meminta penjelasan kosakata cerdas.
+  /// Dilengkapi sistem 2-tier caching (Memori + SharedPreferences).
   Future<PenjelasanAi> ambilPenjelasan(String kata) async {
     final kataBersih = kata.trim().toLowerCase();
     if (kataBersih.isEmpty) {
@@ -135,152 +115,99 @@ class LayananGemini {
       }
     } catch (_) {}
 
-    // 3. Validasi API Key
-    final key = _apiKey;
-    if (key == null) {
-      throw const GeminiKunciBelumDiaturException();
-    }
-
-    // 4. Prompt penjelasan interaktif bilingual
-    final prompt = '''
-Explain the English word "$kataBersih" clearly for an Indonesian language learner. DO NOT USE ANY EMOTICON OR EMOJI
-Return JSON ONLY with the following schema:
-{
-  "kata": "$kataBersih",
-  "arti_indonesia": "Arti utama yang paling tepat dan alami dalam Bahasa Indonesia (1-3 kata) tanpa menggunakan emoji",
-  "definisi_simpel": "Definisi dalam bahasa Inggris yang mudah dipahami pembelajar (1 kalimat) tanpa menggunakan emoji",
-  "nuansa": "Penjelasan singkat dalam Bahasa Indonesia tentang kapan kata ini tepat dipakai (misal: formal/santai, emosi yang dibawa, atau perbedaan dengan kata umum)",
-  "contoh": [
-    {
-      "en": "Natural English example sentence using the word",
-      "id": "Terjemahan kalimat contoh ke Bahasa Indonesia yang alami"
-    },
-    {
-      "en": "A second practical daily example sentence",
-      "id": "Terjemahan kalimat kedua ke Bahasa Indonesia"
-    }
-  ]
-}
-''';
-
-    final bodyJson = jsonEncode({
-      'contents': [
-        {
-          'parts': [
-            {'text': prompt}
-          ]
-        }
-      ],
-      'generationConfig': {
-        'responseMimeType': 'application/json',
-        'temperature': 0.2,
-      }
-    });
-
-    http.Response? respons;
-    String? modelBerhasil;
-
+    // 3. Belum masuk berarti tidak ada JWT untuk dikirim. Dicegat di sini
+    //    supaya tidak perlu bolak-balik ke server hanya untuk ditolak 401.
+    //
+    //    Aksesnya dibungkus try/catch karena `Supabase.instance` melempar
+    //    AssertionError — sebuah Error, BUKAN Exception — bila Supabase belum
+    //    sempat diinisialisasi (misalnya .env bermasalah, jadi main.dart
+    //    berhenti di layar konfigurasi). Error yang lolos dari sini akan
+    //    menembus penanganan `on ... catch` mana pun di pemanggil.
+    final User? pengguna;
     try {
-      // 5. Panggil model dengan toleransi fallback otomatis jika model tertentu deprecated (404), padat (503), atau timeout
-      for (final model in _daftarModel) {
-        final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key',
-        );
-
-        try {
-          final res = await http
-              .post(
-                url,
-                headers: {'Content-Type': 'application/json'},
-                body: bodyJson,
-              )
-              .timeout(const Duration(seconds: 12));
-
-          if (res.statusCode == 404 || res.statusCode == 503) {
-            debugPrint('Gemini model $model status ${res.statusCode}, mencoba model cadangan...');
-            continue;
-          }
-
-          if (res.statusCode == 429) {
-            throw const GeminiBatasKuotaException();
-          }
-
-          respons = res;
-          if (res.statusCode == 200) {
-            modelBerhasil = model;
-          }
-          break;
-        } on TimeoutException {
-          debugPrint('Gemini model $model timeout, mencoba model cadangan...');
-          continue;
-        } on http.ClientException {
-          continue;
-        }
-      }
-
-    if (respons == null) {
-      throw const GeminiKoneksiException('Model AI tidak tersedia atau koneksi terputus.');
+      pengguna = _klien.auth.currentUser;
+    } catch (_) {
+      throw const GeminiKoneksiException(
+        'Aplikasi belum siap terhubung ke server.',
+      );
+    }
+    if (pengguna == null) {
+      throw const GeminiBelumMasukException();
     }
 
-    if (respons.statusCode != 200) {
-      final pesan = 'Gagal menghubungi AI (Status ${respons.statusCode})';
-      debugPrint('$pesan: ${respons.body}');
-      throw GeminiKoneksiException(pesan);
-    }
+    // 4. Panggil Edge Function. JWT pengguna ikut otomatis, tidak perlu
+    //    dipasang manual — itu yang diverifikasi server sebelum memproses.
+    final Map<String, dynamic> jsonHasil;
+    try {
+      final respons = await _klien.functions.invoke(
+        _namaFungsi,
+        body: {'kata': kataBersih},
+        abortSignal: Future.delayed(_batasWaktu),
+      );
 
-    if (modelBerhasil != null) {
-      _modelAktif = modelBerhasil;
-    }
-
-      final dataRespons = jsonDecode(utf8.decode(respons.bodyBytes));
-      final candidates = dataRespons['candidates'] as List?;
-      if (candidates == null || candidates.isEmpty) {
-        throw const GeminiKoneksiException('Tidak ada jawaban dari AI.');
-      }
-
-      final parts = candidates.first['content']?['parts'] as List?;
-      if (parts == null || parts.isEmpty) {
-        throw const GeminiKoneksiException('Format respons AI kosong.');
-      }
-
-      String rawText = (parts.first['text'] as String? ?? '').trim();
-
-      // Bersihkan jika ada blok markdown ```json ... ```
-      if (rawText.startsWith('```json')) {
-        rawText = rawText.substring(7);
-      }
-      if (rawText.startsWith('```')) {
-        rawText = rawText.substring(3);
-      }
-      if (rawText.endsWith('```')) {
-        rawText = rawText.substring(0, rawText.length - 3);
-      }
-      rawText = rawText.trim();
-
-      final jsonParsed = jsonDecode(rawText);
-      if (jsonParsed is! Map<String, dynamic>) {
+      final data = respons.data;
+      if (data is! Map) {
         throw const GeminiKoneksiException('Format data AI tidak sesuai.');
       }
-
-      final hasil = PenjelasanAi.fromJson(jsonParsed);
-
-      // Simpan ke Cache Memori & Penyimpanan HP
-      _cacheMemori[kataBersih] = hasil;
-      await _simpanKeHp(kataBersih, hasil);
-
-      return hasil;
-    } on TimeoutException {
-      throw const GeminiKoneksiException('Koneksi ke server AI melebihi batas waktu (timeout).');
-    } on http.ClientException catch (e) {
-      throw GeminiKoneksiException(e.message);
-    } catch (e) {
-      if (e is GeminiBatasKuotaException ||
-          e is GeminiKunciBelumDiaturException ||
-          e is GeminiKoneksiException) {
-        rethrow;
-      }
-      throw GeminiKoneksiException(e.toString());
+      jsonHasil = Map<String, dynamic>.from(data);
+    } on FunctionException catch (e) {
+      throw _terjemahkanError(e);
+    } on RequestAbortedException {
+      throw const GeminiKoneksiException(
+        'Koneksi ke server AI melebihi batas waktu (timeout).',
+      );
     }
+
+    final hasil = PenjelasanAi.fromJson(jsonHasil);
+
+    // Simpan ke Cache Memori & Penyimpanan HP
+    _cacheMemori[kataBersih] = hasil;
+    await _simpanKeHp(kataBersih, hasil);
+
+    return hasil;
+  }
+
+  /// Memetakan kegagalan Edge Function ke exception yang sudah dikenal UI.
+  ///
+  /// Kode error-nya dibaca dari field `error` pada badan balasan (lihat
+  /// `balasError` di index.ts), bukan dari mencocokkan potongan teks — supaya
+  /// tidak gampang patah kalau redaksi pesannya sewaktu-waktu diubah.
+  Exception _terjemahkanError(FunctionException e) {
+    final detail = e.details;
+    final kode = (detail is Map ? detail['error'] : null)?.toString();
+    final pesan = (detail is Map ? detail['pesan'] : null)?.toString();
+
+    debugPrint('Edge Function $_namaFungsi gagal (status ${e.status}, kode $kode)');
+
+    if (e is FunctionsFetchException) {
+      return const GeminiKoneksiException('Tidak ada koneksi internet.');
+    }
+
+    switch (kode) {
+      case 'BELUM_MASUK':
+        return const GeminiBelumMasukException();
+      case 'KUOTA_HABIS':
+        return const GeminiBatasKuotaException();
+      case 'KUNCI_BELUM_DIATUR':
+        return const GeminiKunciBelumDiaturException();
+      case 'KATA_TIDAK_VALID':
+        return GeminiKoneksiException(
+          pesan ?? 'Kata itu tidak bisa dijelaskan AI.',
+        );
+    }
+
+    // Belum/tidak lagi terautentikasi — JWT ditolak sebelum fungsi berjalan,
+    // jadi badannya belum tentu berbentuk JSON milik kita.
+    if (e.status == 401 || e.status == 403) {
+      return const GeminiBelumMasukException();
+    }
+    if (e.status == 429) {
+      return const GeminiBatasKuotaException();
+    }
+
+    return GeminiKoneksiException(
+      pesan ?? 'Gagal menghubungi AI (status ${e.status}).',
+    );
   }
 
   /// Menyimpan hasil ke penyimpanan HP sambil menjaga jumlah entrinya.
