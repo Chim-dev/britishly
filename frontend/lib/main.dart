@@ -10,6 +10,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LayananNotifikasi.instance.inisialisasi();
 
+  // Pasang jadwal pengingat sejak aplikasi dibuka, tanpa menunggu layar Kata
+  // Harian dibuka. Sengaja tidak di-await supaya tidak menunda layar pertama.
+  LayananNotifikasi.instance.jadwalkanKataHarian();
+
   String? errorInit;
 
   try {
@@ -47,11 +51,41 @@ Future<void> main() async {
   runApp(BritishlyApp(errorInit: errorInit));
 }
 
-class BritishlyApp extends StatelessWidget {
+class BritishlyApp extends StatefulWidget {
   const BritishlyApp({super.key, this.errorInit});
 
   /// Diisi hanya bila koneksi ke Supabase gagal disiapkan.
   final String? errorInit;
+
+  @override
+  State<BritishlyApp> createState() => _BritishlyAppState();
+}
+
+class _BritishlyAppState extends State<BritishlyApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Aplikasi yang lama tidak ditutup tidak pernah menjalankan `main()` lagi,
+  /// sehingga jadwal notifikasinya bisa habis diam-diam. Memasang ulang saat
+  /// aplikasi kembali ke depan menutup celah itu; pemasangannya sendiri
+  /// dilewati kalau hari ini sudah pernah dipasang.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      LayananNotifikasi.instance.jadwalkanKataHarian();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +93,9 @@ class BritishlyApp extends StatelessWidget {
       title: 'Britishly',
       debugShowCheckedModeBanner: false,
       theme: TemaBritishly.terang(),
-      home: errorInit == null
+      home: widget.errorInit == null
           ? const GerbangAuth()
-          : LayarKonfigurasiBermasalah(pesan: errorInit!),
+          : LayarKonfigurasiBermasalah(pesan: widget.errorInit!),
     );
   }
 }

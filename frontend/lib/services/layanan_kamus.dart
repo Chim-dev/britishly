@@ -519,13 +519,20 @@ class LayananKamus {
     if (error is KataTidakDitemukan) {
       return 'Kata "${error.kata}" tidak ada di kamus. Periksa kembali ejaannya.';
     }
-    if (error is ServerKamusSibuk || error is TimeoutException) {
-      return 'Kata yang Anda cari tidak ada di kamus. Periksa kembali ejaannya.';
+    // Timeout dan server sibuk BUKAN soal ejaan. Pesan lama menyuruh user
+    // mengecek ejaannya padahal katanya benar dan jaringannya yang bermasalah.
+    if (error is ServerKamusSibuk) {
+      return 'Server kamus sedang sibuk. Coba lagi sebentar lagi.';
+    }
+    if (error is TimeoutException) {
+      return 'Server kamus tidak merespons tepat waktu. '
+          'Periksa koneksimu lalu coba lagi.';
     }
 
     final teks = error.toString();
     if (teks.contains('TimeoutException')) {
-      return 'Kata yang Anda cari tidak ada di kamus. Periksa kembali ejaannya.';
+      return 'Server kamus tidak merespons tepat waktu. '
+          'Periksa koneksimu lalu coba lagi.';
     }
     if (teks.contains('SocketException') ||
         teks.contains('Failed host lookup') ||

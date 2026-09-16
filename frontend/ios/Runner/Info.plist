@@ -22,6 +22,33 @@
 		<string>$(FLUTTER_BUILD_NAME)</string>
 		<key>CFBundleSignature</key>
 		<string>????</string>
+		<!-- Deep link untuk callback Supabase Auth.
+		     Dipakai oleh emailRedirectTo (konfirmasi pendaftaran) dan oleh
+		     fallback Web OAuth di LayananAuth.masukDenganGoogle().
+		     Tanpa entri ini, browser tidak bisa kembali ke aplikasi di iOS.
+		     Skema-nya harus sama persis dengan yang ada di
+		     android/app/src/main/AndroidManifest.xml. -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>io.supabase.britishly</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>io.supabase.britishly</string>
+				</array>
+			</dict>
+		</array>
+		<!-- Native Google Sign-In di iOS BUTUH dua hal lagi yang tidak bisa
+		     diisi dari sini karena nilainya khusus per-project:
+		       1. <key>GIDClientID</key> berisi iOS client ID dari
+		          Google Cloud Console -> Credentials
+		       2. satu entri CFBundleURLTypes lagi berisi REVERSED client ID
+		          (com.googleusercontent.apps.xxxx)
+		     Tanpa keduanya, LayananAuth otomatis jatuh ke Web OAuth, yang kini
+		     sudah bisa kembali ke aplikasi berkat entri di atas. -->
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>

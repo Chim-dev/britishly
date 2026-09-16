@@ -131,16 +131,20 @@ class LayananAuth {
   /// (yang cascade ke saved_words dan word_synonyms).
   /// Juga membersihkan cache lokal (SharedPreferences) dan melakukan logout.
   Future<void> hapusAkun() async {
-    final user = _klien.auth.currentUser;
-    if (user == null) return;
+    if (_klien.auth.currentUser == null) return;
 
+    // Kalau RPC gagal, akunnya TIDAK jadi terhapus. Error sengaja diteruskan
+    // ke pemanggil supaya dialog menampilkan kegagalan apa adanya.
+    //
+    // Sebelumnya di sini ada fallback yang menghapus isi saved_words lalu
+    // tetap lanjut seolah berhasil — hasilnya kosakata user hilang, akunnya
+    // masih ada, dan aplikasi mengaku "berhasil dihapus". Itu kombinasi
+    // terburuk, jadi fallback-nya dibuang.
     try {
       await _klien.rpc('hapus_akun_saya');
     } catch (e) {
-      debugPrint('RPC hapus_akun_saya gagal: $e. Fallback menghapus data kata...');
-      try {
-        await _klien.from('saved_words').delete().eq('user_id', user.id);
-      } catch (_) {}
+      debugPrint('RPC hapus_akun_saya gagal: $e');
+      rethrow;
     }
 
     try {
@@ -183,6 +187,21 @@ class LayananAuth {
       if (pesan.contains('rate limit') ||
           pesan.contains('too many requests')) {
         return 'Terlalu sering mencoba. Tunggu sebentar lalu ulangi.';
+      }
+      return error.message;
+    }
+
+    // Muncul dari RPC hapus_akun_saya. Sebelumnya tidak pernah terpakai
+    // karena errornya ditelan, jadi pesan mentahnya ikut dirapikan di sini.
+    if (error is PostgrestException) {
+      final pesan = error.message.toLowerCase();
+      if (pesan.contains('sesi login') || error.code == '28000') {
+        return 'Sesi masuk telah berakhir. Masuk kembali lalu ulangi.';
+      }
+      if (pesan.contains('could not find the function') ||
+          error.code == 'PGRST202') {
+        return 'Fitur hapus akun belum terpasang di server. '
+            'Jalankan 05_delete_account.sql di Supabase SQL Editor.';
       }
       return error.message;
     }

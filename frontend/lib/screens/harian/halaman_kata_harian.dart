@@ -81,8 +81,9 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         _sudahDisimpan = tersimpan;
       });
 
-      // Jadwalkan pengingat harian
-      LayananNotifikasi.instance.jadwalkanKataHarian(kata: hasil.kata);
+      // Jadwalkan pengingat harian. Dilewati sendiri kalau hari ini sudah
+      // dipasang saat aplikasi dibuka, jadi tidak ada kerja dobel.
+      LayananNotifikasi.instance.jadwalkanKataHarian();
 
       // Tampilkan animasi streak bila hari baru (hanya 1x per hari saat awal masuk)
       WidgetsBinding.instance.addPostFrameCallback((_) {

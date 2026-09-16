@@ -40,6 +40,15 @@ class _HalamanCariState extends State<HalamanCari> {
   String _judulError = 'Tidak ditemukan';
   IconData _ikonError = Icons.search_off_rounded;
 
+  /// Penanda urutan pencarian.
+  ///
+  /// Definisi dan sinonim diambil lewat dua permintaan terpisah yang lamanya
+  /// tidak sama. Tanpa penanda ini, mencari "apple" lalu cepat-cepat mencari
+  /// "banana" bisa berakhir dengan hasil apple yang datang belakangan menimpa
+  /// tampilan banana. Setiap pencarian baru menaikkan nilainya, dan respons
+  /// milik pencarian lama diabaikan.
+  int _idPencarian = 0;
+
   // State untuk Akronim
   String _filterKategoriAkronim = 'Semua';
   List<Akronim> _daftarAkronim = [];
@@ -74,6 +83,7 @@ class _HalamanCariState extends State<HalamanCari> {
     }
 
     FocusScope.of(context).unfocus();
+    final idPencarianIni = ++_idPencarian;
     setState(() {
       _sedangMuat = true;
       _sedangMuatSinonim = true;
@@ -85,14 +95,16 @@ class _HalamanCariState extends State<HalamanCari> {
 
     // 1. Jalankan pencarian sinonim di latar belakang tanpa menahan render definisi utama
     LayananKamus.instance.cariSinonim(kata).then((daftarSinonim) {
-      if (mounted) {
+      if (mounted && idPencarianIni == _idPencarian) {
         setState(() {
           _sinonim = daftarSinonim;
           _sedangMuatSinonim = false;
         });
       }
     }).catchError((_) {
-      if (mounted) setState(() => _sedangMuatSinonim = false);
+      if (mounted && idPencarianIni == _idPencarian) {
+        setState(() => _sedangMuatSinonim = false);
+      }
     });
 
     // 2. Ambil definisi kata utama (responsif & prioritas tinggi via Fast-Path Datamuse)
@@ -100,7 +112,10 @@ class _HalamanCariState extends State<HalamanCari> {
       final definisi = await LayananKamus.instance.cariDefinisi(
         kata,
         saatFonetikTiba: (fonetik) {
-          if (mounted && _hasil != null && _hasil!.kata.toLowerCase() == kata.toLowerCase()) {
+          if (mounted &&
+              idPencarianIni == _idPencarian &&
+              _hasil != null &&
+              _hasil!.kata.toLowerCase() == kata.toLowerCase()) {
             setState(() {
               _hasil = _hasil!.salinDengan(fonetik: fonetik);
             });
@@ -109,19 +124,23 @@ class _HalamanCariState extends State<HalamanCari> {
       );
       _muatDaftarTersimpan();
 
-      if (!mounted) return;
+      if (!mounted || idPencarianIni != _idPencarian) return;
       setState(() {
         _hasil = definisi;
         _sedangMuat = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || idPencarianIni != _idPencarian) return;
       setState(() {
         _sedangMuat = false;
         _sedangMuatSinonim = false;
         _pesanError = LayananKamus.pesanRamah(e);
         final teks = e.toString();
-        final isOffline = teks.contains('SocketException') ||
+        // Timeout & server sibuk ikut dihitung sebagai masalah koneksi —
+        // menampilkan "kata tidak ditemukan" untuk itu menyesatkan.
+        final isOffline = e is ServerKamusSibuk ||
+            teks.contains('TimeoutException') ||
+            teks.contains('SocketException') ||
             teks.contains('Failed host lookup') ||
             teks.contains('ClientException');
 
@@ -265,8 +284,13 @@ class _HalamanCariState extends State<HalamanCari> {
                     onTap: () {
                       if (_mode != ModePencarian.akronim) {
                         setState(() {
+                          // Pencarian kosakata yang masih berjalan tidak lagi
+                          // relevan setelah pindah ke tab akronim.
+                          _idPencarian++;
                           _mode = ModePencarian.akronim;
                           _ctrl.clear();
+                          _sedangMuat = false;
+                          _sedangMuatSinonim = false;
                           _filterAkronim();
                         });
                       }
@@ -296,11 +320,16 @@ class _HalamanCariState extends State<HalamanCari> {
                         icon: const Icon(Icons.clear_rounded, size: 18),
                         onPressed: () {
                           setState(() {
+                            // Batalkan hasil pencarian yang masih di jalan,
+                            // supaya tidak muncul lagi setelah dibersihkan.
+                            _idPencarian++;
                             _ctrl.clear();
                             _hasil = null;
                             _sinonim = [];
                             _saranLokal = [];
                             _pesanError = null;
+                            _sedangMuat = false;
+                            _sedangMuatSinonim = false;
                           });
                         },
                       ),
