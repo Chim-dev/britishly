@@ -1,52 +1,3 @@
--- ============================================================
--- Britishly — 03_transaction_function.sql
--- TRANSACTION FUNCTION (poin 7 pada dokumen perancangan)
--- Jalankan KETIGA, setelah 02_rls.sql.
--- ============================================================
---
--- MASALAH YANG DISELESAIKAN
--- Menyimpan 1 kata beserta beberapa sinonim melibatkan 2 tahap:
---   1. INSERT ke saved_words        -> menghasilkan id baru
---   2. INSERT beberapa baris ke word_synonyms yang memakai id tersebut
---
--- Kalau tahap 1 berhasil tapi tahap 2 gagal (koneksi putus, data tidak
--- valid, dsb), database menyimpan kata TANPA sinonim -> data tidak
--- konsisten. Karena itu keduanya dibungkus jadi SATU unit kerja atomic:
--- berhasil semua, atau tidak sama sekali.
---
---
--- CATATAN PENTING SOAL "BEGIN ... COMMIT / ROLLBACK"
--- Di PostgreSQL, isi sebuah FUNCTION otomatis berjalan di dalam satu
--- transaksi. Perintah COMMIT / ROLLBACK eksplisit justru TIDAK boleh
--- ditulis di dalam function (akan error), karena transaksinya dikelola
--- oleh Postgres sendiri.
---
--- Yang terjadi sebenarnya:
---   BEGIN        -> membuka blok PL/pgSQL sekaligus awal unit transaksi
---   RETURN       -> semua perubahan di-COMMIT otomatis
---   RAISE/error  -> SELURUH perubahan di-ROLLBACK otomatis
---
--- Jadi sifat atomic-nya nyata dan tetap terpenuhi. Blok EXCEPTION di
--- bawah sengaja ditulis eksplisit supaya perilaku rollback itu terlihat
--- jelas dan bisa dijelaskan saat presentasi.
--- ============================================================
-
-
--- ------------------------------------------------------------
--- FUNCTION: save_word_with_synonyms
---
--- Parameter p_synonyms berupa JSON array, contoh:
---   [
---     {"text": "delighted", "definition": "very pleased"},
---     {"text": "thrilled",  "definition": "extremely happy"}
---   ]
---
--- Mengembalikan: id (uuid) dari kata yang baru tersimpan.
---
--- SECURITY INVOKER = function berjalan sebagai user yang memanggil,
--- sehingga policy RLS tetap berlaku. (Jangan diubah ke DEFINER —
--- itu akan mem-bypass RLS dan membuka celah keamanan.)
--- ------------------------------------------------------------
 create or replace function public.save_word_with_synonyms(
   p_word        text,
   p_definition  text  default null,
@@ -117,7 +68,15 @@ exception
 
   -- Error lain apa pun -> ROLLBACK otomatis atas SEMUA insert di atas
   when others then
-    raise exception 'Gagal menyimpan kata: %', sqlerrm;
+    -- CATATAN: `using errcode = sqlstate` itu WAJIB.
+    --
+    -- Blok EXCEPTION ini menangkap SEMUA raise di atas, termasuk '28000'
+    -- (belum login) dan '22023' (kata kosong). Tanpa meneruskan sqlstate-nya,
+    -- semuanya sampai ke aplikasi sebagai P0001, sehingga pengecekan kode
+    -- error di LayananKosakata.pesanRamah tidak pernah cocok dan user cuma
+    -- melihat pesan mentah alih-alih "Sesi masuk telah berakhir".
+    raise exception 'Gagal menyimpan kata: %', sqlerrm
+      using errcode = sqlstate;
 end;
 $$;
 
@@ -140,10 +99,11 @@ security invoker
 set search_path = public
 as $$
 declare
-  v_user_id uuid := auth.uid();
-  v_synonym jsonb;
-  v_text    text;
-  v_count   integer := 0;
+  v_user_id    uuid := auth.uid();
+  v_synonym    jsonb;
+  v_text       text;
+  v_count      integer := 0;
+  v_baris_baru integer;
 begin
   if v_user_id is null then
     raise exception 'Tidak terautentikasi.' using errcode = '28000';
@@ -170,14 +130,22 @@ begin
     values (p_saved_word_id, v_text, v_synonym ->> 'definition')
     on conflict (saved_word_id, synonym_text) do nothing;
 
-    v_count := v_count + 1;
+    -- Hitung hanya baris yang BENAR-BENAR masuk. Sebelumnya penghitungnya
+    -- dinaikkan untuk setiap entri, termasuk sinonim dobel yang justru
+    -- dilewati oleh ON CONFLICT, jadi jumlah yang dilaporkan bisa lebih
+    -- besar daripada isi tabelnya.
+    get diagnostics v_baris_baru = row_count;
+    v_count := v_count + v_baris_baru;
   end loop;
 
   return v_count;
 
 exception
   when others then
-    raise exception 'Gagal memperbarui sinonim: %', sqlerrm;
+    -- Sama seperti save_word_with_synonyms: sqlstate harus ikut diteruskan,
+    -- kalau tidak kode '42501' (kata bukan milik user) berubah jadi P0001.
+    raise exception 'Gagal memperbarui sinonim: %', sqlerrm
+      using errcode = sqlstate;
 end;
 $$;
 

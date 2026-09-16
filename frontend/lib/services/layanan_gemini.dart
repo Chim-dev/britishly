@@ -85,6 +85,16 @@ class LayananGemini {
   /// Cache memori agar kata yang baru dicari tidak perlu memanggil API lagi
   final Map<String, PenjelasanAi> _cacheMemori = {};
 
+  /// Awalan key dan batas jumlah entri di penyimpanan HP.
+  ///
+  /// Sama seperti [SimpananKamus], simpanan AI dibatasi jumlahnya. Sebelumnya
+  /// tidak ada indeks maupun batas, jadi setiap kata yang pernah dijelaskan
+  /// meninggalkan satu key permanen di SharedPreferences yang tidak pernah
+  /// terhapus lagi.
+  static const _awalanCache = 'cache_ai_';
+  static const _kunciIndeksCache = 'cache_ai_indeks';
+  static const _maksEntriCache = 200;
+
   /// Mengambil API key dari .env
   String? get _apiKey {
     try {
@@ -114,7 +124,7 @@ class LayananGemini {
     // 2. Cek Cache Penyimpanan HP (Tingkat 2 - Kecepatan <10ms)
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cacheTersimpan = prefs.getString('cache_ai_$kataBersih');
+      final cacheTersimpan = prefs.getString(_awalanCache + kataBersih);
       if (cacheTersimpan != null && cacheTersimpan.isNotEmpty) {
         final data = jsonDecode(cacheTersimpan);
         if (data is Map<String, dynamic>) {
@@ -256,13 +266,7 @@ Return JSON ONLY with the following schema:
 
       // Simpan ke Cache Memori & Penyimpanan HP
       _cacheMemori[kataBersih] = hasil;
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-          'cache_ai_$kataBersih',
-          jsonEncode(hasil.toJson()),
-        );
-      } catch (_) {}
+      await _simpanKeHp(kataBersih, hasil);
 
       return hasil;
     } on TimeoutException {
@@ -279,8 +283,41 @@ Return JSON ONLY with the following schema:
     }
   }
 
-  /// Membersihkan cache jika diperlukan
+  /// Menyimpan hasil ke penyimpanan HP sambil menjaga jumlah entrinya.
+  /// Yang paling lama dipakai dibuang lebih dulu.
+  Future<void> _simpanKeHp(String kata, PenjelasanAi hasil) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_awalanCache + kata, jsonEncode(hasil.toJson()));
+
+      final indeks = prefs.getStringList(_kunciIndeksCache) ?? [];
+      indeks.remove(kata);
+      indeks.add(kata);
+
+      while (indeks.length > _maksEntriCache) {
+        await prefs.remove(_awalanCache + indeks.removeAt(0));
+      }
+      await prefs.setStringList(_kunciIndeksCache, indeks);
+    } catch (_) {
+      // Simpanan bermasalah bukan alasan menggagalkan penjelasan yang sudah
+      // berhasil diambil.
+    }
+  }
+
+  /// Membersihkan cache memori saja.
   void bersihkanCache() {
     _cacheMemori.clear();
+  }
+
+  /// Membersihkan cache memori sekaligus simpanan di HP.
+  Future<void> bersihkanSimpanan() async {
+    _cacheMemori.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      for (final kata in prefs.getStringList(_kunciIndeksCache) ?? <String>[]) {
+        await prefs.remove(_awalanCache + kata);
+      }
+      await prefs.remove(_kunciIndeksCache);
+    } catch (_) {}
   }
 }

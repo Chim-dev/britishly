@@ -1,0 +1,51 @@
+# ============================================================
+# Britishly — contoh konfigurasi penandatanganan rilis
+#
+# CARA PAKAI
+#   1. Buat keystore-nya (SEKALI SEUMUR HIDUP APLIKASI).
+#      Jalankan di terminal biasa (PowerShell), SATU baris:
+#
+#        keytool -genkey -v -keystore "$env:USERPROFILE\britishly-release.jks" -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias britishly
+#
+#      Perintah itu akan menanyakan password dan beberapa data diri.
+#      Catat passwordnya baik-baik.
+#
+#      Kalau "keytool" tidak dikenali, keytool ikut terpasang bersama Java /
+#      Android Studio. Contoh lokasinya:
+#        C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe
+#
+#   2. Salin file ini, beri nama "key.properties" (tanpa .example),
+#      lalu isi keempat nilai di bawah.
+#
+#   3. Build: flutter build appbundle --release
+#
+#
+# ⚠️  JANGAN PERNAH HILANGKAN FILE .jks ITU.
+#     Play Store hanya menerima update yang ditandatangani keystore yang
+#     SAMA dengan rilis pertama. Kalau file itu hilang, aplikasi yang sudah
+#     terbit tidak bisa di-update lagi selamanya — harus terbit ulang
+#     sebagai aplikasi baru dan semua pengguna lama ditinggal.
+#     Simpan cadangannya di tempat lain (Google Drive pribadi, dsb).
+#
+# ⚠️  key.properties dan file .jks TIDAK ikut ke git (lihat android/.gitignore).
+#     Jangan pernah meng-commit atau membagikannya.
+#
+# ⚠️  SETELAH membuat keystore baru, daftarkan sidik jari SHA-1 nya ke
+#     Google Cloud Console -> Credentials, kalau tidak Google Sign-In akan
+#     gagal di APK rilis. Lihat SHA-1 dengan:
+#
+#        keytool -list -v -keystore "$env:USERPROFILE\britishly-release.jks" -alias britishly
+# ============================================================
+
+# Nama alias yang dipakai saat membuat keystore (-alias di perintah atas)
+keyAlias=britishly
+
+# Password untuk alias tersebut
+keyPassword=GANTI_DENGAN_PASSWORD_KEY
+
+# Password untuk file keystore-nya
+storePassword=GANTI_DENGAN_PASSWORD_STORE
+
+# Lokasi file .jks — paling aman pakai path lengkap (absolute path).
+# Contoh Windows (perhatikan garis miringnya dibalik jadi /):
+storeFile=C:/Users/USER/britishly-release.jks

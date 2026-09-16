@@ -162,20 +162,25 @@ class LayananKataHarian {
         params['p_date'] = tanggalTeks;
       }
       hasil = await _klien.rpc('set_daily_word', params: params);
-    } catch (_) {
-      // Fallback jika database Supabase belum di-update dengan parameter p_date
-      if (tanggalTeks != null) {
-        hasil = await _klien.rpc(
-          'set_daily_word',
-          params: {
-            'p_word': kata,
-            'p_definition': definisi.isEmpty ? null : definisi,
-            'p_example': contoh.isEmpty ? null : contoh,
-          },
-        );
-      } else {
-        rethrow;
-      }
+    } catch (e) {
+      // Fallback ini HANYA untuk database yang function-nya masih versi lama
+      // (belum punya parameter p_date).
+      //
+      // Dulu semua error ikut ditangkap di sini. Akibatnya gangguan jaringan
+      // sesaat membuat permintaan diulang tanpa p_date, sehingga tanggalnya
+      // jatuh ke tanggal server (UTC). Untuk pengguna WIB (UTC+7) antara
+      // pukul 00.00–07.00, barisnya tercatat sebagai kemarin dan streak-nya
+      // justru putus. Jadi error selain "function tidak ada" dilempar lagi.
+      if (tanggalTeks == null || !_karenaFunctionVersiLama(e)) rethrow;
+
+      hasil = await _klien.rpc(
+        'set_daily_word',
+        params: {
+          'p_word': kata,
+          'p_definition': definisi.isEmpty ? null : definisi,
+          'p_example': contoh.isEmpty ? null : contoh,
+        },
+      );
     }
 
     // PostgREST bisa mengembalikan objek tunggal atau daftar berisi satu
@@ -187,6 +192,18 @@ class LayananKataHarian {
     return {};
   }
 
+  /// Benar hanya bila errornya "function dengan parameter itu tidak ada" —
+  /// yaitu database masih memakai skrip sebelum 06_sync_local_time.sql.
+  /// PostgREST memakai kode PGRST202 untuk kasus ini.
+  static bool _karenaFunctionVersiLama(Object error) {
+    if (error is! PostgrestException) return false;
+    if (error.code == 'PGRST202' || error.code == '42883') return true;
+
+    final pesan = error.message.toLowerCase();
+    return pesan.contains('could not find the function') ||
+        pesan.contains('does not exist');
+  }
+
   Future<int> ambilStreak({String? tanggalTeks}) async {
     final tgl = tanggalTeks ?? () {
       final now = DateTime.now();
@@ -196,8 +213,12 @@ class LayananKataHarian {
     try {
       final hasil = await _klien.rpc('get_streak', params: {'p_today': tgl});
       return hasil is num ? hasil.toInt() : 0;
-    } catch (_) {
-      // Fallback jika database Supabase belum di-update dengan parameter p_today
+    } catch (e) {
+      // Sama seperti _panggilSetDailyWord: hanya database versi lama yang
+      // boleh dihitung ulang tanpa p_today. Kalau errornya jaringan, streak
+      // hasil hitungan UTC bisa lebih kecil dari yang sebenarnya.
+      if (!_karenaFunctionVersiLama(e)) return 0;
+
       try {
         final hasil = await _klien.rpc('get_streak');
         return hasil is num ? hasil.toInt() : 0;

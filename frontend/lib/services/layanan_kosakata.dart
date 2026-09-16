@@ -77,12 +77,25 @@ class LayananKosakata {
       kueri = kueri.eq('status_hafalan', status.nilaiDb);
     }
     if (cari != null && cari.trim().isNotEmpty) {
-      kueri = kueri.ilike('word', '%${cari.trim()}%');
+      kueri = kueri.ilike('word', '%${_amankanPolaLike(cari.trim())}%');
     }
 
     final data = await kueri.order('created_at', ascending: false);
     return data.map(KataTersimpan.dariBaris).toList();
   }
+
+  /// Di ILIKE, `%` berarti "karakter apa pun sebanyak apa pun" dan `_` berarti
+  /// "satu karakter apa pun". Tanpa di-escape, mengetik `a_b` di kotak cari
+  /// ikut mencocokkan "axb", dan mengetik `%` mencocokkan seluruh isi daftar.
+  /// Backslash-nya sendiri harus diganti lebih dulu supaya tidak dobel.
+  ///
+  /// `*` sengaja dibiarkan: PostgREST menerjemahkannya jadi `%` sebelum query
+  /// sampai ke Postgres, jadi tidak ada cara meloloskannya lewat filter ilike.
+  /// Dampaknya kecil — kata bahasa Inggris tidak memakai karakter itu.
+  static String _amankanPolaLike(String teks) => teks
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
 
   static const _kunciKategoriKustom = 'kategori_kustom_pengguna';
 
@@ -152,16 +165,26 @@ class LayananKosakata {
         .update({'is_favorite': favorit}).eq('id', id);
   }
 
+  /// Memperbarui kolom-kolom `saved_words` dalam SATU permintaan.
+  ///
+  /// [status] dan [favorit] opsional, dan sengaja ikut di sini: halaman detail
+  /// dulu mengirim tiga UPDATE terpisah untuk satu baris yang sama, sehingga
+  /// kalau yang kedua gagal, yang pertama sudah terlanjur tersimpan. Satu
+  /// UPDATE = satu pernyataan = atomic.
   Future<void> ubahDetail(
     String id, {
     required String definisi,
     required String contoh,
     required String kategori,
+    StatusHafalan? status,
+    bool? favorit,
   }) async {
     await _klien.from('saved_words').update({
       'definition': definisi,
       'example': contoh,
       'category': kategori,
+      if (status != null) 'status_hafalan': status.nilaiDb,
+      'is_favorite': ?favorit,
     }).eq('id', id);
   }
 

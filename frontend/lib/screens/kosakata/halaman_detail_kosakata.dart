@@ -52,20 +52,26 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
 
   Future<void> _simpan() async {
     setState(() => _sedangSimpan = true);
+
+    // Menyimpan sekarang cuma dua langkah: satu UPDATE untuk seluruh kolom
+    // kata (definisi, contoh, kategori, status, favorit sekaligus), lalu satu
+    // RPC untuk sinonim. Dulu langkah pertama dipecah jadi tiga permintaan,
+    // jadi kegagalan di tengah menyimpan sebagian perubahan tanpa pemberitahuan.
+    //
+    // Langkah kedua tetap terpisah karena memang tabel lain. Kalau yang itu
+    // gagal, perubahan kata SUDAH tersimpan — dan itu yang dikatakan ke user,
+    // bukan "gagal menyimpan" yang menyesatkan.
+    var detailTersimpan = false;
     try {
       await LayananKosakata.instance.ubahDetail(
         widget.kata.id,
         definisi: _definisiCtrl.text.trim(),
         contoh: _contohCtrl.text.trim(),
         kategori: _kategori,
+        status: _status != widget.kata.status ? _status : null,
+        favorit: _favorit != widget.kata.favorit ? _favorit : null,
       );
-
-      if (_status != widget.kata.status) {
-        await LayananKosakata.instance.ubahStatus(widget.kata.id, _status);
-      }
-      if (_favorit != widget.kata.favorit) {
-        await LayananKosakata.instance.ubahFavorit(widget.kata.id, _favorit);
-      }
+      detailTersimpan = true;
 
       await LayananKosakata.instance.gantiSinonim(widget.kata.id, _sinonim);
 
@@ -77,10 +83,20 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
       );
       Navigator.of(context).pop();
     } catch (e) {
+      // Daftar di halaman sebelumnya tetap perlu disegarkan kalau kolom
+      // katanya sempat tersimpan.
+      if (detailTersimpan) beriTahuKosakataBerubah();
       if (!mounted) return;
+
+      final pesan = LayananKosakata.pesanRamah(e);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(LayananKosakata.pesanRamah(e)),
+          content: Text(
+            detailTersimpan
+                ? 'Detail kata tersimpan, tetapi sinonimnya gagal diperbarui. '
+                    '$pesan'
+                : pesan,
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
