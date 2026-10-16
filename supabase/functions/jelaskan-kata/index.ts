@@ -42,6 +42,14 @@ const BATAS_WAKTU_MS = 12_000;
 /// Hanya menerima satu kata / frasa pendek bahasa Inggris.
 const POLA_KATA = /^[a-z][a-z '-]*$/;
 
+/// Maksimal panggilan Gemini per user per hari. Penjelasan yang diambil dari
+/// cache (HP maupun tabel ai_explanations) tidak dihitung.
+const BATAS_HARIAN = 5;
+
+/// Umur cache bersama di tabel ai_explanations. pg_cron juga menghapus
+/// entri yang lebih tua dari ini tiap malam (10_ai_explanation_limit.sql).
+const UMUR_CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+
 /// Jawaban error yang bentuknya konsisten, supaya sisi Flutter bisa
 /// memetakannya ke pesan ramah tanpa menebak-nebak isi teks.
 function balasError(kode: string, status: number, pesan: string): Response {
@@ -157,7 +165,30 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // ---- 2. Ambil API key dari secret server ----------------------------
+  // Service role untuk cache bersama & jatah harian. Key-nya otomatis
+  // tersedia di Edge Function, tidak perlu dipasang.
+  const klienAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
+  // ---- 2. Cache bersama: pernah dijelaskan untuk user mana pun dalam 7
+  //         hari terakhir -> kembalikan tanpa Gemini & tanpa memakai jatah
+  const { data: tersimpan, error: galatCache } = await klienAdmin
+    .from("ai_explanations")
+    .select("data")
+    .eq("word", kata)
+    .gte("created_at", new Date(Date.now() - UMUR_CACHE_MS).toISOString())
+    .maybeSingle();
+  if (galatCache) console.error("gagal membaca ai_explanations:", galatCache.message);
+  if (tersimpan?.data) {
+    return new Response(JSON.stringify(tersimpan.data), {
+      status: 200,
+      headers: { ...HEADER_CORS, "Content-Type": "application/json", "x-sumber": "cache" },
+    });
+  }
+
+  // ---- 3. Ambil API key dari secret server ----------------------------
   const apiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
   if (!apiKey) {
     return balasError(
@@ -167,6 +198,31 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // ---- 4. Jatah harian. Diambil SEBELUM memanggil Gemini (supaya
+  //         permintaan bersamaan tidak bisa melewati batas), dan dikembalikan
+  //         kalau Gemini ternyata gagal menjawab.
+  const { data: boleh, error: galatKuota } = await klienAdmin.rpc(
+    "pakai_kuota_penjelasan",
+    { p_user: user.id, p_batas: BATAS_HARIAN },
+  );
+  if (galatKuota) {
+    console.error("gagal memakai kuota:", galatKuota.message);
+    return balasError("AI_BERMASALAH", 502, "Gagal memeriksa jatah penjelasan AI.");
+  }
+  if (boleh !== true) {
+    return balasError(
+      "JATAH_HABIS",
+      429,
+      `Jatah penjelasan AI hari ini sudah habis (${BATAS_HARIAN}/hari). Coba lagi besok.`,
+    );
+  }
+
+  const gagal = async (balasan: Response): Promise<Response> => {
+    const { error } = await klienAdmin.rpc("kembalikan_kuota_penjelasan", { p_user: user.id });
+    if (error) console.error("gagal mengembalikan kuota:", error.message);
+    return balasan;
+  };
+
   const badanGemini = JSON.stringify({
     contents: [{ parts: [{ text: rakitPrompt(kata) }] }],
     generationConfig: {
@@ -175,7 +231,7 @@ Deno.serve(async (req: Request) => {
     },
   });
 
-  // ---- 3. Panggil model, dengan cadangan otomatis ----------------------
+  // ---- 5. Panggil model, dengan cadangan otomatis ----------------------
   let terakhirGagal = "Model AI tidak tersedia.";
 
   for (const model of DAFTAR_MODEL) {
@@ -211,11 +267,11 @@ Deno.serve(async (req: Request) => {
     }
 
     if (res.status === 429) {
-      return balasError(
+      return await gagal(balasError(
         "KUOTA_HABIS",
         429,
         "Batas kuota harian AI tercapai atau server AI sedang padat.",
-      );
+      ));
     }
 
     if (!res.ok) {
@@ -225,25 +281,35 @@ Deno.serve(async (req: Request) => {
         `gemini ${model} status ${res.status}:`,
         await res.text(),
       );
-      return balasError(
+      return await gagal(balasError(
         "AI_BERMASALAH",
         502,
         `Gagal menghubungi AI (${res.status}).`,
-      );
+      ));
     }
 
-    // ---- 4. Bongkar jawaban -------------------------------------------
+    // ---- 6. Bongkar jawaban -------------------------------------------
     try {
       const data = await res.json();
       const teks = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (typeof teks !== "string" || teks.trim() === "") {
-        return balasError("AI_KOSONG", 502, "Tidak ada jawaban dari AI.");
+        return await gagal(balasError("AI_KOSONG", 502, "Tidak ada jawaban dari AI."));
       }
 
       const hasil = JSON.parse(bersihkanPagarMarkdown(teks));
       if (typeof hasil !== "object" || hasil === null || Array.isArray(hasil)) {
-        return balasError("FORMAT_SALAH", 502, "Format data AI tidak sesuai.");
+        return await gagal(balasError("FORMAT_SALAH", 502, "Format data AI tidak sesuai."));
       }
+
+      // Simpan ke cache bersama. Entri kedaluwarsa yang belum sempat
+      // dihapus pg_cron ikut diperbarui.
+      const { error: galatSimpan } = await klienAdmin
+        .from("ai_explanations")
+        .upsert(
+          { word: kata, data: hasil, created_at: new Date().toISOString() },
+          { onConflict: "word" },
+        );
+      if (galatSimpan) console.error("gagal menyimpan ai_explanations:", galatSimpan.message);
 
       return new Response(JSON.stringify(hasil), {
         status: 200,
@@ -259,10 +325,10 @@ Deno.serve(async (req: Request) => {
         "gagal membaca jawaban gemini:",
         e instanceof Error ? e.message : e,
       );
-      return balasError("FORMAT_SALAH", 502, "Jawaban AI tidak bisa dibaca.");
+      return await gagal(balasError("FORMAT_SALAH", 502, "Jawaban AI tidak bisa dibaca."));
     }
   }
 
   // Seluruh model gagal
-  return balasError("AI_TIDAK_TERSEDIA", 502, terakhirGagal);
+  return await gagal(balasError("AI_TIDAK_TERSEDIA", 502, terakhirGagal));
 });

@@ -10,6 +10,7 @@ import '../../models/sinonim.dart';
 import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kosakata.dart';
 import '../../widgets/kartu_penjelasan_ai.dart';
+import '../../widgets/label_level.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
 
@@ -561,14 +562,22 @@ class _HalamanCariState extends State<HalamanCari> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            hasil.kata,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.9,
-                              color: TemaBritishly.tinta,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  hasil.kata,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.9,
+                                    color: TemaBritishly.tinta,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              LabelLevel(kata: hasil.kata, ukuranTeks: 12),
+                            ],
                           ),
                           if (hasil.fonetik.isNotEmpty) ...[
                             const SizedBox(height: 4),

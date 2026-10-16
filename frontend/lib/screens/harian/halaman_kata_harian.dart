@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/panduan_nuansa.dart';
@@ -12,6 +13,7 @@ import '../../services/layanan_kosakata.dart';
 import '../../services/layanan_notifikasi.dart';
 import '../../widgets/dialog_animasi_streak.dart';
 import '../../widgets/kartu_penjelasan_ai.dart';
+import '../../widgets/label_level.dart';
 import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
@@ -223,11 +225,11 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         children: [
           // Header: Tanggal & Streak Pill
           _barisTanggalStreak(kata),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Hero Flashcard
           _kartuFlashcard(kata),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Tombol Simpan (aktif setelah dibuka)
           if (_terbuka) ...[
@@ -273,10 +275,9 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
               const SizedBox(height: 3),
               Text(
                 _tanggalPanjang(kata.tanggal),
-                style: const TextStyle(
+                style: GoogleFonts.fredoka(
                   fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+                  fontWeight: FontWeight.w600,
                   color: TemaBritishly.tinta,
                 ),
               ),
@@ -311,9 +312,9 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
               const SizedBox(width: 5),
               Text(
                 '${kata.streak}',
-                style: TextStyle(
+                style: GoogleFonts.fredoka(
                   fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: kata.streak > 0
                       ? TemaBritishly.tinta
                       : TemaBritishly.tintaPudar,
@@ -347,7 +348,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         // COVER: Ditampilkan sebelum di-reveal pada hari ini
         // ================================================================
         firstChild: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -360,34 +361,35 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                       color: TemaBritishly.hijauSamar,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
+                    child: Text(
                       'KATA HARI INI',
-                      style: TextStyle(
+                      style: GoogleFonts.fredoka(
                         fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
                         color: TemaBritishly.hijau,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  LabelLevel(kata: kata.kata, ukuranTeks: 10.5),
                   const Spacer(),
                   TombolAudio(
                     teks: kata.kata,
-                    ukuran: 36,
+                    ukuran: 32,
                     warnaLatar: TemaBritishly.hijauSamar,
                     warnaIkon: TemaBritishly.hijau,
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               Text(
                 kata.kata,
-                style: const TextStyle(
-                  fontSize: 38,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                  height: 1.1,
+                style: GoogleFonts.fredoka(
+                  fontSize: 29,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
                   color: TemaBritishly.tinta,
                 ),
               ),
@@ -413,11 +415,11 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                 ),
               ],
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               // Area petunjuk Flashcard
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: TemaBritishly.kremIsi.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(14),
@@ -430,7 +432,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                   children: [
                     Icon(
                       Icons.lightbulb_outline_rounded,
-                      size: 20,
+                      size: 18,
                       color: TemaBritishly.amber,
                     ),
                     SizedBox(width: 10),
@@ -438,7 +440,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                       child: Text(
                         'Tebak arti kata ini dalam hati, lalu buka untuk melihat definisi dan tips penggunaannya.',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           height: 1.45,
                           color: TemaBritishly.tintaPudar,
                         ),
@@ -447,7 +449,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               // Tombol Reveal
               FilledButton.icon(
@@ -463,7 +465,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
         // REVEALED: Konten lengkap setelah dibuka
         // ================================================================
         secondChild: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 26),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -477,35 +479,36 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                       color: TemaBritishly.hijauSamar,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
+                    child: Text(
                       'KATA HARI INI',
-                      style: TextStyle(
+                      style: GoogleFonts.fredoka(
                         fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.8,
                         color: TemaBritishly.hijau,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  LabelLevel(kata: kata.kata, ukuranTeks: 10.5),
                   const Spacer(),
                   TombolAudio(
                     teks: kata.kata,
-                    ukuran: 36,
+                    ukuran: 32,
                     warnaLatar: TemaBritishly.hijauSamar,
                     warnaIkon: TemaBritishly.hijau,
                   ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
 
               // Kata Utama
               Text(
                 kata.kata,
-                style: const TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.2,
-                  height: 1.1,
+                style: GoogleFonts.fredoka(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
                   color: TemaBritishly.tinta,
                 ),
               ),
@@ -531,7 +534,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                 ),
               ],
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
               Container(
                 width: 32,
                 height: 2.5,
@@ -540,15 +543,15 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
 
               // Definisi
               if (kata.definisi.isNotEmpty)
                 Text(
                   kata.definisi,
                   style: const TextStyle(
-                    fontSize: 15.5,
-                    height: 1.6,
+                    fontSize: 14.5,
+                    height: 1.55,
                     color: TemaBritishly.tinta,
                   ),
                 )
@@ -560,17 +563,17 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                 ),
 
               // Penjelasan Pintar AI (Bilingual & On-Demand)
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               KartuPenjelasanAi(kata: kata.kata),
 
               // -------------------------------------------------------------
               // FITUR: Contoh Penggunaan
               // -------------------------------------------------------------
               if (kata.contoh.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                   decoration: BoxDecoration(
                     color: TemaBritishly.kremIsi,
                     borderRadius: BorderRadius.circular(14),
@@ -603,7 +606,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                         style: const TextStyle(
                           fontStyle: FontStyle.italic,
                           height: 1.55,
-                          fontSize: 14.5,
+                          fontSize: 13.5,
                           color: TemaBritishly.tinta,
                         ),
                       ),
@@ -616,7 +619,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
               // FITUR 3: Cuplikan Sinonim Terkait
               // -------------------------------------------------------------
               if (_cuplikanSinonim.isNotEmpty) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
                 Text(
                   'CUPLIKAN SINONIM CEPAT',
                   style: TemaBritishly.labelBagian.copyWith(fontSize: 10.5),

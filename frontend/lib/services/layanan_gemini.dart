@@ -30,6 +30,17 @@ class GeminiBatasKuotaException implements Exception {
       'Batas kuota harian AI tercapai atau server AI sedang padat.';
 }
 
+/// Exception ketika jatah harian penjelasan AI milik pengguna ini habis.
+///
+/// Berbeda dengan [GeminiBatasKuotaException] (kuota Gemini seluruh aplikasi):
+/// ini batas per akun dari Edge Function, dan baru pulih besok.
+class GeminiJatahHabisException implements Exception {
+  const GeminiJatahHabisException(this.pesan);
+  final String pesan;
+  @override
+  String toString() => pesan;
+}
+
 /// Exception ketika pengguna belum masuk.
 ///
 /// Edge Function memverifikasi JWT, jadi penjelasan AI hanya tersedia untuk
@@ -61,9 +72,10 @@ class GeminiKoneksiException implements Exception {
 /// Sekarang panggilannya lewat Edge Function `jelaskan-kata` di Supabase.
 /// Key-nya hidup sebagai secret di server dan tidak pernah dikirim ke HP.
 ///
-/// Yang tidak berubah: cache 2 tingkat di bawah ini. Justru makin berguna,
-/// karena setiap panggilan yang bisa dihindari berarti satu panggilan yang
-/// tidak memakan kuota.
+/// Yang tidak berubah: cache 2 tingkat di bawah ini. Justru makin berguna:
+/// kata yang sudah ada di HP tidak pernah sampai ke server, jadi tidak
+/// memakan jatah harian (5/hari) maupun kuota Gemini. Di server masih ada
+/// lapis ketiga — cache bersama 7 hari di tabel ai_explanations.
 class LayananGemini {
   LayananGemini._();
 
@@ -188,6 +200,10 @@ class LayananGemini {
         return const GeminiBelumMasukException();
       case 'KUOTA_HABIS':
         return const GeminiBatasKuotaException();
+      case 'JATAH_HABIS':
+        return GeminiJatahHabisException(
+          pesan ?? 'Jatah penjelasan AI hari ini sudah habis. Coba lagi besok.',
+        );
       case 'KUNCI_BELUM_DIATUR':
         return const GeminiKunciBelumDiaturException();
       case 'KATA_TIDAK_VALID':

@@ -6,6 +6,7 @@ import '../../core/penanda_perubahan.dart';
 import '../../core/tema.dart';
 import '../../models/kata_tersimpan.dart';
 import '../../services/layanan_kosakata.dart';
+import '../../widgets/label_level.dart';
 import '../../widgets/tombol_audio.dart';
 import 'halaman_detail_kosakata.dart';
 
@@ -591,11 +592,34 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
     return RefreshIndicator(
       onRefresh: _muat,
       color: TemaBritishly.hijau,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
-        itemCount: _daftar.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _kartuKata(_daftar[i]),
+      // Gallery view ala Notion: 2 kolom di HP, bertambah di layar lebar
+      child: LayoutBuilder(
+        builder: (_, batas) {
+          final kolom = (batas.maxWidth / 200).floor().clamp(2, 5);
+          final jumlahBaris = (_daftar.length / kolom).ceil();
+
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 48),
+            itemCount: jumlahBaris,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            // IntrinsicHeight agar kartu dalam satu baris sama tinggi
+            itemBuilder: (_, baris) => IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var k = 0; k < kolom; k++) ...[
+                    if (k > 0) const SizedBox(width: 12),
+                    Expanded(
+                      child: baris * kolom + k < _daftar.length
+                          ? _kartuKata(_daftar[baris * kolom + k])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -608,17 +632,17 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
         : kata.kata;
 
     return Card(
-      elevation: terpilih ? 2 : 0,
-      color: terpilih ? TemaBritishly.hijauSamar : Colors.white,
+      elevation: 0,
+      color: terpilih ? TemaBritishly.hijauSamar : TemaBritishly.putih,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: terpilih ? TemaBritishly.hijau : TemaBritishly.kremGaris,
-          width: terpilih ? 1.8 : 1,
+          width: terpilih ? 1.5 : 1,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onLongPress: () {
           if (!_modePilihBanyak) {
             _mulaiPilihBanyak(kata.id);
@@ -638,61 +662,39 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           );
           await _muat();
         },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(
-                  color: terpilih
-                      ? TemaBritishly.hijau
-                      : warnaStatus(kata.status),
-                  width: terpilih ? 5 : 4,
-                ),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (_modePilihBanyak) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Icon(
-                          terpilih
-                              ? Icons.check_circle_rounded
-                              : Icons.radio_button_unchecked_rounded,
-                          color: terpilih
-                              ? TemaBritishly.hijau
-                              : TemaBritishly.tintaPudar,
-                          size: 24,
-                        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 6, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Baris ikon: emoji kategori + aksi cepat
+              Row(
+                children: [
+                  _ikonKategori(kata.kategori),
+                  const Spacer(),
+                  if (_modePilihBanyak)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Icon(
+                        terpilih
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        color: terpilih
+                            ? TemaBritishly.hijau
+                            : TemaBritishly.tintaPudar,
+                        size: 22,
                       ),
-                    ],
-                    Expanded(
-                      child: Text(
-                        kata.kata,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: TemaBritishly.tinta,
-                        ),
-                      ),
+                    )
+                  else ...[
+                    TombolAudio(
+                      teks: teksLafal,
+                      ukuran: 26,
+                      tooltip: 'Dengarkan "$teksLafal"',
                     ),
-                    if (!_modePilihBanyak) ...[
-                      // Tombol Audio British
-                      TombolAudio(
-                        teks: teksLafal,
-                        ukuran: 32,
-                        tooltip: 'Dengarkan "$teksLafal"',
-                      ),
-                      const SizedBox(width: 4),
-                      // Tombol Favorit
-                      IconButton(
+                    SizedBox.square(
+                      dimension: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
                         tooltip: kata.favorit
                             ? 'Lepas favorit'
                             : 'Jadikan favorit',
@@ -703,16 +705,19 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                           color: kata.favorit
                               ? TemaBritishly.amber
                               : TemaBritishly.tintaPudar,
-                          size: 22,
+                          size: 19,
                         ),
                         onPressed: () => _gantiFavorit(kata),
                       ),
-                      // Menu opsi
-                      PopupMenuButton<String>(
+                    ),
+                    SizedBox.square(
+                      dimension: 28,
+                      child: PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
                         icon: const Icon(
-                          Icons.more_vert_rounded,
+                          Icons.more_horiz_rounded,
                           color: TemaBritishly.tintaPudar,
-                          size: 20,
+                          size: 18,
                         ),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
@@ -745,35 +750,46 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                           ),
                         ],
                       ),
-                    ] else ...[
-                      if (terpilih)
-                        _label(
-                          'Terpilih',
-                          TemaBritishly.hijau.withValues(alpha: 0.15),
-                          TemaBritishly.hijau,
-                        ),
-                    ],
+                    ),
                   ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  kata.kata,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    height: 1.25,
+                    color: TemaBritishly.tinta,
+                  ),
                 ),
-                if (kata.definisi.isNotEmpty)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(right: 8, top: 4, bottom: 12),
-                    child: Text(
-                      kata.definisi,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        height: 1.45,
-                        color: TemaBritishly.tintaPudar,
-                      ),
+              ),
+              if (kata.definisi.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8, top: 4),
+                  child: Text(
+                    kata.definisi,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      color: TemaBritishly.tintaPudar,
                     ),
                   ),
-                Wrap(
+                ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Wrap(
                   spacing: 6,
                   runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     _label(kata.kategori, TemaBritishly.kremIsi,
                         TemaBritishly.tinta),
@@ -784,15 +800,30 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
                         TemaBritishly.hijauSamar,
                         TemaBritishly.hijau,
                       ),
+                    LabelLevel(kata: teksLafal),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _ikonKategori(String kategori) => Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: TemaBritishly.kremIsi,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          _emojiKategori[kategori] ?? '\u{1F4D8}',
+          style: const TextStyle(fontSize: 15),
+        ),
+      );
 
   Widget _label(String teks, Color latar, Color warnaTeks) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -836,6 +867,16 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
     );
   }
 }
+
+/// Emoji penanda kategori bawaan; kategori kustom memakai buku biru.
+const _emojiKategori = {
+  'Sehari-hari': '☕',
+  'Akronim & Slang': '\u{1F4AC}',
+  'Travel': '✈️',
+  'Bisnis': '\u{1F4BC}',
+  'Akademik': '\u{1F393}',
+  'Teknologi': '\u{1F4BB}',
+};
 
 Color warnaStatus(StatusHafalan status) => switch (status) {
       StatusHafalan.belum => TemaBritishly.statusBelum,

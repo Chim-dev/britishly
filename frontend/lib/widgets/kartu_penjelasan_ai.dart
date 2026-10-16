@@ -24,6 +24,9 @@ class _KartuPenjelasanAiState extends State<KartuPenjelasanAi> {
   StatusPenjelasanAi _status = StatusPenjelasanAi.awal;
   PenjelasanAi? _hasil;
 
+  /// Diisi saat jatah harian habis; mencoba lagi percuma sampai besok.
+  String? _pesanJatahHabis;
+
   @override
   void didUpdateWidget(covariant KartuPenjelasanAi oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -38,6 +41,7 @@ class _KartuPenjelasanAiState extends State<KartuPenjelasanAi> {
   Future<void> _muatPenjelasan() async {
     setState(() {
       _status = StatusPenjelasanAi.memuat;
+      _pesanJatahHabis = null;
     });
 
     try {
@@ -46,6 +50,12 @@ class _KartuPenjelasanAiState extends State<KartuPenjelasanAi> {
       setState(() {
         _hasil = res;
         _status = StatusPenjelasanAi.sukses;
+      });
+    } on GeminiJatahHabisException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pesanJatahHabis = e.pesan;
+        _status = StatusPenjelasanAi.gagal;
       });
     } catch (_) {
       if (!mounted) return;
@@ -385,28 +395,29 @@ class _KartuPenjelasanAiState extends State<KartuPenjelasanAi> {
             color: TemaBritishly.merah,
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Text(
-              'AI explanation is currently unavailable',
-              style: TextStyle(
+              _pesanJatahHabis ?? 'AI explanation is currently unavailable',
+              style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
                 color: TemaBritishly.merah,
               ),
             ),
           ),
-          TextButton(
-            onPressed: _muatPenjelasan,
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              foregroundColor: TemaBritishly.hijau,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          if (_pesanJatahHabis == null)
+            TextButton(
+              onPressed: _muatPenjelasan,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: TemaBritishly.hijau,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              child: const Text(
+                'Try Again',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
             ),
-            child: const Text(
-              'Try Again',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-          ),
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,

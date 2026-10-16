@@ -6,6 +6,7 @@ import '../../models/kata_tersimpan.dart';
 import '../../models/sinonim.dart';
 import '../../services/layanan_kamus.dart';
 import '../../services/layanan_kosakata.dart';
+import '../../widgets/label_level.dart';
 import '../../widgets/lembar_detail_kata.dart';
 import '../../widgets/pemilih_kategori.dart';
 import '../../widgets/tombol_audio.dart';
@@ -221,6 +222,8 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
       appBar: AppBar(
         title: Text(widget.kata.kata),
         actions: [
+          Center(child: LabelLevel(kata: teksLafal, ukuranTeks: 12)),
+          const SizedBox(width: 8),
           TombolAudio(teks: teksLafal, ukuran: 34),
           const SizedBox(width: 4),
           IconButton(

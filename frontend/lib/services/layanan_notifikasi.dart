@@ -162,8 +162,8 @@ class LayananNotifikasi {
 
   /// Menjadwalkan notifikasi kata harian untuk hari-hari berikutnya tepat pada
   /// pukul 00:00 waktu lokal HP pengguna. Setiap notifikasi mencantumkan kata
-  /// spesifik hari tersebut, dihitung dengan rumus yang sama seperti yang
-  /// dipakai layar Kata Harian, jadi isinya selalu cocok.
+  /// spesifik hari tersebut, diambil dari jadwal kata acak API yang sama
+  /// dengan yang dibaca layar Kata Harian, jadi isinya selalu cocok.
   ///
   /// Aman dipanggil sesering apa pun: pemasangan ulang dilewati kalau hari ini
   /// sudah pernah dipasang, kecuali [paksa] bernilai `true`.
@@ -179,7 +179,7 @@ class LayananNotifikasi {
       final penandaHariIni = '${sekarang.year.toString().padLeft(4, '0')}-'
           '${sekarang.month.toString().padLeft(2, '0')}-'
           '${sekarang.day.toString().padLeft(2, '0')}'
-          '#h$jumlahHariDijadwalkan';
+          '#h$jumlahHariDijadwalkan#api';
 
       // Memasang ulang berarti belasan panggilan ke alarm sistem. Karena
       // method ini kini ikut dipanggil setiap aplikasi kembali ke depan,
@@ -195,6 +195,21 @@ class LayananNotifikasi {
         // Penyimpanan bermasalah bukan alasan melewatkan notifikasi.
         prefs = null;
       }
+
+      // Kata diambil dulu (bisa beberapa detik saat pertama kali) sebelum
+      // jadwal lama dibatalkan, supaya tidak ada jeda tanpa pengingat
+      var jadwalKata = <String, String>{};
+      try {
+        jadwalKata = await LayananKataHarian.instance.siapkanJadwal(
+          jumlahHariKeDepan: jumlahHariDijadwalkan,
+        );
+      } catch (_) {}
+
+      // Kata cadangan (offline / belum login) bisa berbeda dengan kata yang
+      // nanti ditetapkan server. Kalau ada yang memakai cadangan, penanda
+      // "sudah dijadwalkan" tidak disimpan supaya dipasang ulang begitu
+      // jadwal server bisa diambil.
+      var pakaiCadangan = false;
 
       // Batalkan jadwal lama agar tidak terjadi duplikasi
       await batalkanNotifikasiHarian();
@@ -234,7 +249,11 @@ class LayananNotifikasi {
         }
 
         final dt = DateTime(sekarang.year, sekarang.month, sekarang.day + i);
-        final String kataSpesifik = LayananKataHarian.kataUntukTanggal(dt);
+        final String? kataServer =
+            jadwalKata[LayananKataHarian.teksTanggal(dt)];
+        if (kataServer == null) pakaiCadangan = true;
+        final String kataSpesifik =
+            kataServer ?? LayananKataHarian.kataUntukTanggal(dt);
 
         final judul = 'Kata Hari Ini: "$kataSpesifik" 🇬🇧';
         const isi = 'Yuk pelajari arti, pelafalan audio, dan contoh penggunaannya!';
@@ -250,7 +269,9 @@ class LayananNotifikasi {
         );
       }
 
-      await prefs?.setString(_kunciTerakhirDijadwalkan, penandaHariIni);
+      if (!pakaiCadangan) {
+        await prefs?.setString(_kunciTerakhirDijadwalkan, penandaHariIni);
+      }
     } catch (e) {
       debugPrint('Gagal menjadwalkan notifikasi harian: $e');
     }

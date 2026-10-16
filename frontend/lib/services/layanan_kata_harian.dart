@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/konstanta.dart';
@@ -38,8 +41,8 @@ class LayananKataHarian {
 
   SupabaseClient get _klien => Supabase.instance.client;
 
-  /// Menghasilkan kata kurasi deterministik untuk tanggal tertentu dari daftar kSumberKataHarian.
-  /// Menjamin notifikasi kata harian dan layar aplikasi selalu 100% cocok.
+  /// Kata kurasi deterministik dari kSumberKataHarian. Sekarang hanya
+  /// cadangan bila API tidak bisa dihubungi atau penyimpanan HP gagal.
   static String kataUntukTanggal(DateTime dt) {
     final awalTahun = DateTime(dt.year, 1, 1);
     final hariKe = dt.difference(awalTahun).inDays;
@@ -47,10 +50,95 @@ class LayananKataHarian {
     return kSumberKataHarian[indeks.abs()];
   }
 
+  static String teksTanggal(DateTime dt) =>
+      '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  /// Salinan lokal jadwal kata bersama ('yyyy-MM-dd' -> kata).
+  ///
+  /// Notifikasi lokal harus sudah tahu teksnya saat dijadwalkan, padahal
+  /// kata acak dari API baru diketahui setelah diambil. Karena itu kata untuk
+  /// beberapa hari ke depan ditetapkan di muka oleh Edge Function
+  /// `jadwal-kata` di tabel `daily_word_schedule` (satu kata per tanggal
+  /// untuk semua user), lalu disalin ke sini supaya tetap terbaca saat
+  /// offline. Layar Kata Harian dan
+  /// notifikasi — di HP mana pun — membaca jadwal yang sama.
+  ///
+  /// Isinya HANYA kata yang sudah dikonfirmasi server. Kata server tidak
+  /// pernah berubah, jadi salinan ini tidak bisa basi.
+  static const String _kunciJadwal = 'jadwal_kata_harian_bersama';
+
+  /// Antrean pengisian jadwal. Tanpa ini, dua panggilan bersamaan (mis.
+  /// notifikasi saat aplikasi dibuka + layar Kata Harian) memanggil server
+  /// dua kali untuk hal yang sama.
+  Future<void> _antreanJadwal = Future.value();
+
+  /// Memastikan hari ini sampai [jumlahHariKeDepan] hari berikutnya sudah
+  /// punya kata, lalu mengembalikan jadwalnya.
+  ///
+  /// Tanggal yang tidak bisa dipastikan (offline / belum login) TIDAK ada di
+  /// hasil. Pemanggil memakai [kataUntukTanggal] sebagai cadangan — rumusnya
+  /// sama di semua HP, jadi dua HP yang sama-sama offline tetap kompak.
+  Future<Map<String, String>> siapkanJadwal({int jumlahHariKeDepan = 0}) {
+    final hasil = _antreanJadwal.then((_) => _isiJadwal(jumlahHariKeDepan));
+    _antreanJadwal = hasil.then((_) {}, onError: (_) {});
+    return hasil;
+  }
+
+  Future<Map<String, String>> _isiJadwal(int jumlahHariKeDepan) async {
+    final hariIni = DateTime.now();
+    final semuaTanggal = [
+      for (var i = 0; i <= jumlahHariKeDepan; i++)
+        teksTanggal(DateTime(hariIni.year, hariIni.month, hariIni.day + i)),
+    ];
+    final dari = semuaTanggal.first;
+    final sampai = semuaTanggal.last;
+
+    // 1. Salinan lokal
+    SharedPreferences? prefs;
+    final jadwal = <String, String>{};
+    try {
+      prefs = await SharedPreferences.getInstance();
+      final mentah = prefs.getString(_kunciJadwal);
+      if (mentah != null) {
+        jadwal.addAll(Map<String, String>.from(jsonDecode(mentah) as Map));
+      }
+    } catch (_) {}
+    // Tanggal yang sudah lewat tidak diperlukan lagi
+    jadwal.removeWhere((tgl, _) => tgl.compareTo(dari) < 0);
+
+    if (semuaTanggal.every(jadwal.containsKey)) return jadwal;
+
+    // 2. Jadwal bersama dari server. Kata untuk tanggal yang masih kosong
+    //    dipilih oleh Edge Function jadwal-kata, bukan oleh HP. Bisa gagal
+    //    kalau offline, belum login, atau Supabase belum diinisialisasi
+    //    (main() menjadwalkan notifikasi sebelum Supabase.initialize) —
+    //    cukup pakai yang ada.
+    try {
+      if (_klien.auth.currentUser == null) return jadwal;
+
+      final respons = await _klien.functions.invoke(
+        'jadwal-kata',
+        body: {'dari': dari, 'sampai': sampai},
+        abortSignal: Future.delayed(const Duration(seconds: 30)),
+      );
+      final data = respons.data;
+      if (data is Map && data['jadwal'] is Map) {
+        (data['jadwal'] as Map).forEach((tgl, kata) {
+          jadwal[tgl.toString()] = kata.toString();
+        });
+      }
+
+      try {
+        await prefs?.setString(_kunciJadwal, jsonEncode(jadwal));
+      } catch (_) {}
+    } catch (_) {}
+
+    return jadwal;
+  }
+
   Future<KataHarian> ambilHariIni() async {
     final hariIni = DateTime.now();
-    final hariIniTeks =
-        '${hariIni.year.toString().padLeft(4, '0')}-${hariIni.month.toString().padLeft(2, '0')}-${hariIni.day.toString().padLeft(2, '0')}';
+    final hariIniTeks = teksTanggal(hariIni);
 
     Map<String, dynamic> baris = {};
     int streak = 0;
@@ -89,8 +177,14 @@ class LayananKataHarian {
         if (contohTampil.isEmpty) contohTampil = def.contohUtama;
       } catch (_) {}
     } else {
-      // 2. Hari baru -> gunakan kata kurasi deterministik yang selaras 100% dengan jadwal notifikasi
-      kataTampil = kataUntukTanggal(hariIni);
+      // 2. Hari baru -> pakai kata acak dari API yang sudah dijadwalkan,
+      //    yaitu kata yang sama dengan yang tercantum di notifikasi hari ini
+      try {
+        final jadwal = await siapkanJadwal();
+        kataTampil = jadwal[hariIniTeks] ?? kataUntukTanggal(hariIni);
+      } catch (_) {
+        kataTampil = kataUntukTanggal(hariIni);
+      }
 
       try {
         final def = await LayananKamus.instance.cariDefinisi(kataTampil);

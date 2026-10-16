@@ -5,6 +5,7 @@ import '../core/tema.dart';
 import '../models/hasil_kamus.dart';
 import '../services/layanan_kamus.dart';
 import '../services/layanan_kosakata.dart';
+import 'label_level.dart';
 import 'pemilih_kategori.dart';
 import 'tombol_audio.dart';
 
@@ -140,14 +141,22 @@ class _IsiLembarDetailKataState extends State<_IsiLembarDetailKata> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.kata,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                              color: TemaBritishly.tinta,
-                            ),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  widget.kata,
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.6,
+                                    color: TemaBritishly.tinta,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              LabelLevel(kata: widget.kata, ukuranTeks: 12),
+                            ],
                           ),
                           if (_hasil?.fonetik.isNotEmpty ?? false) ...[
                             const SizedBox(height: 2),

@@ -17,6 +17,12 @@ Buka [supabase.com](https://supabase.com) → project kamu → menu **SQL Editor
 | 2 | `02_rls.sql` | Row Level Security — wajib, jangan dilewat |
 | 3 | `03_transaction_function.sql` | Transaction function `save_word_with_synonyms` |
 | 4 | `04_daily_word.sql` | Tabel `daily_words` + function streak |
+| 5 | `05_delete_account.sql` | Function `hapus_akun_saya` |
+| 6 | `06_sync_local_time.sql` | Kata harian & streak memakai tanggal lokal HP |
+| 7 | `07_daily_word_schedule.sql` | Tabel `daily_word_schedule` — kata harian bersama per tanggal |
+| 8 | `08_word_levels.sql` | Tabel `word_levels` (level CEFR bersama) + jatah harian per user |
+| 9 | `09_security_fix.sql` | Hapus RPC `usulkan_kata_harian` + index batas global level CEFR |
+| 10 | `10_ai_explanation_limit.sql` | Cache penjelasan AI bersama (7 hari, dihapus otomatis via pg_cron) + jatah 5/hari per user |
 | — | `99_test.sql` | Opsional — untuk mengecek semuanya jalan |
 | — | `00_reset.sql` | ⚠️ Hapus semuanya. Hanya kalau mau mengulang dari nol |
 
