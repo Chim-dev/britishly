@@ -70,13 +70,35 @@ class _DialogHapusAkunState extends State<DialogHapusAkun> {
   @override
   Widget build(BuildContext context) {
     final skema = Theme.of(context).colorScheme;
+    final lanskap =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final konsekuensi = [
+      _itemKonsekuensi(
+        icon: Icons.bookmark_remove_rounded,
+        teks: 'Seluruh kata tersimpan & catatan sinonim pribadi.',
+      ),
+      _itemKonsekuensi(
+        icon: Icons.local_fire_department_rounded,
+        teks: 'Riwayat progres, streak belajar harian, dan kategori kustom.',
+      ),
+      _itemKonsekuensi(
+        icon: Icons.person_off_rounded,
+        teks: 'Profil dan seluruh hak akses akun Britishly Anda.',
+      ),
+    ];
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
-      titlePadding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
-      contentPadding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+      // Saat HP dimiringkan, jarak atas-bawah dikecilkan dan poin konsekuensi
+      // dijajarkan, supaya dialog muat tanpa perlu di-scroll.
+      insetPadding: lanskap
+          ? const EdgeInsets.symmetric(horizontal: 40, vertical: 12)
+          : null,
+      titlePadding: EdgeInsets.fromLTRB(20, lanskap ? 10 : 16, 12, 8),
+      contentPadding: EdgeInsets.fromLTRB(20, 8, 20, lanskap ? 10 : 16),
       actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
       title: Row(
         children: [
@@ -135,24 +157,24 @@ class _DialogHapusAkunState extends State<DialogHapusAkun> {
                   color: skema.error.withValues(alpha: 0.2),
                 ),
               ),
-              child: Column(
-                children: [
-                  _itemKonsekuensi(
-                    icon: Icons.bookmark_remove_rounded,
-                    teks: 'Seluruh kata tersimpan & catatan sinonim pribadi.',
-                  ),
-                  const SizedBox(height: 8),
-                  _itemKonsekuensi(
-                    icon: Icons.local_fire_department_rounded,
-                    teks: 'Riwayat progres, streak belajar harian, dan kategori kustom.',
-                  ),
-                  const SizedBox(height: 8),
-                  _itemKonsekuensi(
-                    icon: Icons.person_off_rounded,
-                    teks: 'Profil dan seluruh hak akses akun Britishly Anda.',
-                  ),
-                ],
-              ),
+              child: lanskap
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < konsekuensi.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 12),
+                          Expanded(child: konsekuensi[i]),
+                        ],
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        for (var i = 0; i < konsekuensi.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 8),
+                          konsekuensi[i],
+                        ],
+                      ],
+                    ),
             ),
             const SizedBox(height: 16),
             InkWell(

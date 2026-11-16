@@ -79,9 +79,11 @@ class _IsiPemilihKategoriState extends State<_IsiPemilihKategori> {
 
   @override
   Widget build(BuildContext context) {
+    // Bisa di-scroll: saat HP dimiringkan, apalagi dengan keyboard terbuka,
+    // daftar kategori dan kolom kategori baru tidak muat setinggi layar.
     return SafeArea(
       top: false,
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.only(
           left: 24,
           right: 24,

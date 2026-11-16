@@ -216,6 +216,208 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
   @override
   Widget build(BuildContext context) {
     final teksLafal = widget.kata.kata.split('(').first.trim();
+    final lanskap =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    final bagianDetail = <Widget>[
+      // ---- Status hafalan ----
+      _judulBagian('STATUS HAFALAN'),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        children: StatusHafalan.values.map((s) {
+          final aktif = _status == s;
+          return ChoiceChip(
+            label: Text(s.label),
+            selected: aktif,
+            showCheckmark: false,
+            avatar: Icon(Icons.circle, size: 9, color: warnaStatus(s)),
+            onSelected: (_) {
+              setState(() => _status = s);
+              _tandaiBerubah();
+            },
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 24),
+
+      // ---- Kategori ----
+      _judulBagian('KATEGORI'),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: () async {
+          final hasil = await pilihKategori(context, terpilih: _kategori);
+          if (hasil == null || !mounted) return;
+          setState(() => _kategori = hasil);
+          _tandaiBerubah();
+        },
+        icon: const Icon(Icons.folder_open_rounded, size: 18),
+        label: Row(
+          children: [
+            Text(_kategori),
+            const Spacer(),
+            const Icon(Icons.chevron_right_rounded,
+                size: 18, color: TemaBritishly.tintaPudar),
+          ],
+        ),
+      ),
+      const SizedBox(height: 24),
+
+      // ---- Definisi ----
+      _judulBagian('DEFINISI / MAKNA'),
+      const SizedBox(height: 8),
+      TextField(
+        controller: _definisiCtrl,
+        maxLines: null,
+        minLines: 2,
+        onChanged: (_) => _tandaiBerubah(),
+        decoration: const InputDecoration(
+          hintText: 'Definisi atau arti kata ini...',
+        ),
+      ),
+      const SizedBox(height: 22),
+
+      // ---- Contoh Kalimat ----
+      _judulBagian('CONTOH PENGGUNAAN'),
+      const SizedBox(height: 8),
+      TextField(
+        controller: _contohCtrl,
+        maxLines: null,
+        minLines: 2,
+        onChanged: (_) => _tandaiBerubah(),
+        decoration: const InputDecoration(
+          hintText: 'Contoh dalam kalimat atau percakapan...',
+        ),
+      ),
+    ];
+
+    final bagianSinonim = <Widget>[
+      Row(
+        children: [
+          _judulBagian('MAKNA SERUPA (${_sinonim.length})'),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: _sedangCariSinonim ? null : _cariSinonimLagi,
+            icon: _sedangCariSinonim
+                ? const SizedBox(
+                    height: 14,
+                    width: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome_rounded, size: 16),
+            label: const Text('Cari Lagi'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+
+      if (_sinonim.isEmpty)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Center(
+              child: Text(
+                'Belum ada sinonim yang disimpan.',
+                style: TextStyle(
+                    color: TemaBritishly.tintaPudar.withValues(alpha: 0.8)),
+              ),
+            ),
+          ),
+        )
+      else
+        Card(
+          child: Column(
+            children: [
+              for (var i = 0; i < _sinonim.length; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                ListTile(
+                  title: Row(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () => tampilkanLembarDetailKata(
+                          context,
+                          _sinonim[i].teks,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _sinonim[i].teks,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  decoration: TextDecoration.underline,
+                                  decorationStyle: TextDecorationStyle.dotted,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 14,
+                                color: TemaBritishly.hijau,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      TombolAudio(
+                        teks: _sinonim[i].teks,
+                        ukuran: 28,
+                        tooltip: 'Dengarkan "${_sinonim[i].teks}"',
+                      ),
+                    ],
+                  ),
+                  subtitle: _sinonim[i].definisi == null
+                      ? null
+                      : Text(
+                          _sinonim[i].definisi!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
+                  trailing: IconButton(
+                    tooltip: 'Hapus sinonim',
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: TemaBritishly.tintaPudar,
+                    ),
+                    onPressed: () {
+                      setState(() => _sinonim.removeAt(i));
+                      _tandaiBerubah();
+                    },
+                  ),
+                  dense: true,
+                ),
+              ],
+            ],
+          ),
+        ),
+      const SizedBox(height: 12),
+
+      Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _sinonimBaruCtrl,
+              onSubmitted: (_) => _tambahSinonimManual(),
+              decoration: const InputDecoration(
+                hintText: 'Tambah kata serupa manual...',
+                isDense: true,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: _tambahSinonimManual,
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ],
+      ),
+    ];
 
     return Scaffold(
       backgroundColor: TemaBritishly.krem,
@@ -244,238 +446,90 @@ class _HalamanDetailKosakataState extends State<HalamanDetailKosakata> {
                 size: 22, color: TemaBritishly.merah),
             onPressed: _hapus,
           ),
+          if (lanskap)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: FilledButton(
+                onPressed: (!_adaPerubahan || _sedangSimpan) ? null : _simpan,
+                // Ukuran bawaan tema selebar layar; di app bar harus ringkas.
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                ),
+                child: _sedangSimpan
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Simpan'),
+              ),
+            ),
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-        children: [
-          // ---- Status hafalan ----
-          _judulBagian('STATUS HAFALAN'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            children: StatusHafalan.values.map((s) {
-              final aktif = _status == s;
-              return ChoiceChip(
-                label: Text(s.label),
-                selected: aktif,
-                showCheckmark: false,
-                avatar: Icon(Icons.circle, size: 9, color: warnaStatus(s)),
-                onSelected: (_) {
-                  setState(() => _status = s);
-                  _tandaiBerubah();
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-
-          // ---- Kategori ----
-          _judulBagian('KATEGORI'),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final hasil = await pilihKategori(context, terpilih: _kategori);
-              if (hasil == null || !mounted) return;
-              setState(() => _kategori = hasil);
-              _tandaiBerubah();
-            },
-            icon: const Icon(Icons.folder_open_rounded, size: 18),
-            label: Row(
+      body: lanskap
+          // Layar pendek: data kata di kiri, sinonim di kanan, dan tombol
+          // simpan pindah ke app bar supaya tidak memakan tinggi layar.
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_kategori),
-                const Spacer(),
-                const Icon(Icons.chevron_right_rounded,
-                    size: 18, color: TemaBritishly.tintaPudar),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 10, 24),
+                    children: bagianDetail,
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(10, 4, 20, 24),
+                    children: bagianSinonim,
+                  ),
+                ),
+              ],
+            )
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+              children: [
+                ...bagianDetail,
+                const SizedBox(height: 24),
+
+                // ---- Sinonim ----
+                ...bagianSinonim,
               ],
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // ---- Definisi ----
-          _judulBagian('DEFINISI / MAKNA'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _definisiCtrl,
-            maxLines: null,
-            minLines: 2,
-            onChanged: (_) => _tandaiBerubah(),
-            decoration: const InputDecoration(
-              hintText: 'Definisi atau arti kata ini...',
+      bottomSheet: lanskap
+          ? null
+          : Container(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+            decoration: const BoxDecoration(
+              color: TemaBritishly.putih,
+              border: Border(
+                top: BorderSide(color: TemaBritishly.kremGaris, width: 0.8),
+              ),
             ),
-          ),
-          const SizedBox(height: 22),
-
-          // ---- Contoh Kalimat ----
-          _judulBagian('CONTOH PENGGUNAAN'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _contohCtrl,
-            maxLines: null,
-            minLines: 2,
-            onChanged: (_) => _tandaiBerubah(),
-            decoration: const InputDecoration(
-              hintText: 'Contoh dalam kalimat atau percakapan...',
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ---- Sinonim ----
-          Row(
-            children: [
-              _judulBagian('MAKNA SERUPA (${_sinonim.length})'),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: _sedangCariSinonim ? null : _cariSinonimLagi,
-                icon: _sedangCariSinonim
+            child: SafeArea(
+              top: false,
+              child: FilledButton(
+                onPressed: (!_adaPerubahan || _sedangSimpan) ? null : _simpan,
+                child: _sedangSimpan
                     ? const SizedBox(
-                        height: 14,
-                        width: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome_rounded, size: 16),
-                label: const Text('Cari Lagi'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          if (_sinonim.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Center(
-                  child: Text(
-                    'Belum ada sinonim yang disimpan.',
-                    style: TextStyle(
-                        color: TemaBritishly.tintaPudar.withValues(alpha: 0.8)),
-                  ),
-                ),
-              ),
-            )
-          else
-            Card(
-              child: Column(
-                children: [
-                  for (var i = 0; i < _sinonim.length; i++) ...[
-                    if (i > 0) const Divider(height: 1),
-                    ListTile(
-                      title: Row(
-                        children: [
-                          InkWell(
-                            borderRadius: BorderRadius.circular(6),
-                            onTap: () => tampilkanLembarDetailKata(
-                              context,
-                              _sinonim[i].teks,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _sinonim[i].teks,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      decoration: TextDecoration.underline,
-                                      decorationStyle: TextDecorationStyle.dotted,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.info_outline_rounded,
-                                    size: 14,
-                                    color: TemaBritishly.hijau,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          TombolAudio(
-                            teks: _sinonim[i].teks,
-                            ukuran: 28,
-                            tooltip: 'Dengarkan "${_sinonim[i].teks}"',
-                          ),
-                        ],
-                      ),
-                      subtitle: _sinonim[i].definisi == null
-                          ? null
-                          : Text(
-                              _sinonim[i].definisi!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12.5),
-                            ),
-                      trailing: IconButton(
-                        tooltip: 'Hapus sinonim',
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          size: 18,
-                          color: TemaBritishly.tintaPudar,
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
                         ),
-                        onPressed: () {
-                          setState(() => _sinonim.removeAt(i));
-                          _tandaiBerubah();
-                        },
-                      ),
-                      dense: true,
-                    ),
-                  ],
-                ],
+                      )
+                    : Text(_adaPerubahan
+                        ? 'Simpan Perubahan'
+                        : 'Belum Ada Perubahan'),
               ),
             ),
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _sinonimBaruCtrl,
-                  onSubmitted: (_) => _tambahSinonimManual(),
-                  decoration: const InputDecoration(
-                    hintText: 'Tambah kata serupa manual...',
-                    isDense: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _tambahSinonimManual,
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
-          ),
-        ],
-      ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-        decoration: const BoxDecoration(
-          color: TemaBritishly.putih,
-          border: Border(
-            top: BorderSide(color: TemaBritishly.kremGaris, width: 0.8),
-          ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: FilledButton(
-            onPressed: (!_adaPerubahan || _sedangSimpan) ? null : _simpan,
-            child: _sedangSimpan
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(_adaPerubahan
-                    ? 'Simpan Perubahan'
-                    : 'Belum Ada Perubahan'),
-          ),
-        ),
-      ),
+            ),
     );
   }
 

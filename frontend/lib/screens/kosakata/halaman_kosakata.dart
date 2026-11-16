@@ -93,8 +93,12 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
     final pilihan = await showModalBottomSheet<StatusHafalan>(
       context: context,
       showDragHandle: true,
+      // Lembar bawaan dibatasi 9/16 tinggi layar; saat HP dimiringkan daftar
+      // status tidak muat, jadi lembar dibiarkan mengikuti isinya dan bisa
+      // di-scroll.
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -423,30 +427,25 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
         children: [
           if (_modePilihBanyak)
             _bilahAksiSeleksi()
+          else if (MediaQuery.orientationOf(context) == Orientation.landscape)
+            // Tinggi layar sempit: kolom cari dan filter dijajarkan satu baris.
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, bottom: 6),
+                    child: SizedBox(width: 260, child: _kolomCari()),
+                  ),
+                  Expanded(child: _barisFilter()),
+                ],
+              ),
+            )
           else ...[
             // Input Pencarian di Kosakata
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: TextField(
-                controller: _cariCtrl,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _muat(),
-                decoration: InputDecoration(
-                  hintText: 'Cari kata atau akronim tersimpan...',
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  suffixIcon: _cariCtrl.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            _cariCtrl.clear();
-                            _muat();
-                          },
-                        ),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
+              child: _kolomCari(),
             ),
 
             // Filter Carousel Pills
@@ -457,6 +456,29 @@ class _HalamanKosakataState extends State<HalamanKosakata> {
           Expanded(child: _isi()),
         ],
       ),
+    );
+  }
+
+  Widget _kolomCari() {
+    return TextField(
+      controller: _cariCtrl,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => _muat(),
+      decoration: InputDecoration(
+        hintText: 'Cari kata atau akronim tersimpan...',
+        isDense: true,
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: _cariCtrl.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear_rounded, size: 18),
+                onPressed: () {
+                  _cariCtrl.clear();
+                  _muat();
+                },
+              ),
+      ),
+      onChanged: (_) => setState(() {}),
     );
   }
 

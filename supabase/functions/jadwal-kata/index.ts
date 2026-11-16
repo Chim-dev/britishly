@@ -54,6 +54,32 @@ function keTeks(hari: number): string {
   return new Date(hari * 86_400_000).toISOString().slice(0, 10);
 }
 
+/// Kata harian tampil ke SEMUA pengguna, jadi kata kasar, seksual eksplisit,
+/// dan hinaan (slur) ditolak. Datamuse tidak punya filter sendiri.
+/// AKAR_TERLARANG dicek sebagai potongan kata (menangkap bentuk turunan
+/// seperti "fucking"); hanya akar yang hampir tidak pernah muncul di kata
+/// wajar. Kata yang akarnya pendek/umum ("rape" ada di "grape") masuk
+/// KATA_TERLARANG yang dicocokkan utuh.
+// ponytail: daftar manual, ganti ke library profanity kalau ternyata bocor.
+const AKAR_TERLARANG = ["fuck", "shit", "cunt", "nigg", "whore", "slut", "porn", "bitch", "faggot", "dildo"];
+const KATA_TERLARANG = new Set([
+  "bastard", "bastards", "asshole", "assholes", "bollocks", "wanker", "wankers",
+  "twat", "twats", "prick", "pricks", "cock", "cocks", "dick", "dicks", "pussy",
+  "pussies", "penis", "penises", "vagina", "vaginas", "boobs", "tits", "boner",
+  "horny", "orgasm", "orgasms", "erotic", "erotica", "nude", "nudes", "naked",
+  "rape", "raped", "rapes", "raping", "rapist", "rapists", "incest", "fetish",
+  "semen", "sperm", "anal", "anus", "masturbate", "hooker", "hookers",
+  "retard", "retards", "retarded", "spastic", "tranny", "dyke", "dykes", "kike",
+  "chink", "chinks", "spic", "spick", "wetback", "negro", "negroes", "gook",
+  "fag", "fags", "fagot", "coon", "coons", "piss", "pissed", "crap", "damn",
+  "bloody", "bugger", "arse", "arsehole", "suicide", "nazi", "nazis",
+]);
+
+function kataAman(kata: string): boolean {
+  const k = kata.toLowerCase();
+  return !KATA_TERLARANG.has(k) && !AKAR_TERLARANG.some((a) => k.includes(a));
+}
+
 /// Kata acak berkualitas dari Datamuse: 5–9 huruf, awalan huruf acak,
 /// huruf murni, punya definisi, dan cukup umum (score >= 30000).
 /// Sama dengan LayananKamus.ambilKataAcakDinamis di aplikasi.
@@ -71,6 +97,7 @@ async function ambilKataAcak(): Promise<string | null> {
       .filter((i) =>
         typeof i?.word === "string" &&
         /^[a-z]+$/.test(i.word) &&
+        kataAman(i.word) &&
         Array.isArray(i.defs) && i.defs.length > 0 &&
         (Number(i.score) || 0) >= 30_000
       )

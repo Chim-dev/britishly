@@ -94,200 +94,245 @@ class _DialogAnimasiStreakState extends State<DialogAnimasiStreak>
         ? const Color(0xFFD1FAE5)
         : const Color(0xFFFFEDD5);
 
+    final lanskap =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    // Baris header dengan tombol silang (X)
+    final header = Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const SizedBox(width: 32),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: warnaLatarIcon,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isTerputus
+                    ? Icons.eco_rounded
+                    : Icons.local_fire_department_rounded,
+                size: 15,
+                color: warnaUtama,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                isAktif
+                    ? 'STREAK AKTIF'
+                    : isTerputus
+                        ? 'SEMANGAT BARU'
+                        : 'MULAI STREAK',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: warnaUtama,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          key: const Key('tombol_tutup_dialog_streak'),
+          icon: const Icon(Icons.close_rounded, size: 20),
+          color: TemaBritishly.tintaPudar,
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'Tutup',
+        ),
+      ],
+    );
+
+    // Animasi visual api / tunas berdenyut
+    final animasi = AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        final skalaTotal = _skala.value * (_ctrl.value > 0.6 ? _denyut.value : 1.0);
+        return Transform.scale(
+          scale: skalaTotal.clamp(0.01, 1.2),
+          child: child,
+        );
+      },
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            colors: [
+              warnaUtama.withValues(alpha: 0.25),
+              warnaUtama.withValues(alpha: 0.05),
+              Colors.transparent,
+            ],
+            stops: const [0.4, 0.7, 1.0],
+          ),
+        ),
+        child: Center(
+          child: Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: warnaLatarIcon,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: warnaUtama.withValues(alpha: 0.3),
+                  blurRadius: 16,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Icon(
+              isTerputus
+                  ? Icons.refresh_rounded
+                  : Icons.local_fire_department_rounded,
+              size: 44,
+              color: warnaUtama,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Badge angka hari
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: TemaBritishly.kremIsi,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: TemaBritishly.kremGaris),
+      ),
+      child: Text(
+        isTerputus
+            ? 'Hari ke-1'
+            : '${widget.streak} Hari Berturut-turut',
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: TemaBritishly.tinta,
+        ),
+      ),
+    );
+
+    // Judul
+    final judul = Text(
+      isAktif
+          ? 'Streak Belajar Terjaga! 🔥'
+          : isTerputus
+              ? 'Streak Mengulang dari Hari ke-1'
+              : 'Langkah Pertama Dimulai!',
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: TemaBritishly.tinta,
+        letterSpacing: -0.2,
+      ),
+    );
+
+    // Pesan persuasif & motivasi
+    final pesan = Text(
+      isAktif
+          ? 'Konsistensimu sungguh luar biasa! Luangkan 1 menit untuk membuka kata hari ini dan jaga api belajarmu tetap menyala.'
+          : isTerputus
+              ? 'Jangan patah semangat! Kehilangan streak bukan berarti kehilangan ilmu yang telah kamu pelajari. Perjalanan ribuan mil selalu dimulai dari satu langkah kecil. Mari nyalakan kembali apimu hari ini!'
+              : 'Selamat datang di Britishly! Buka aplikasi setiap hari untuk membangun kebiasaan belajar dan menguasai kosakata baru bahasa Inggris.',
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 13.5,
+        color: TemaBritishly.tintaPudar,
+        height: 1.45,
+      ),
+    );
+
+    // Tombol Aksi Utama
+    final tombol = SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        key: const Key('tombol_aksi_dialog_streak'),
+        onPressed: () => Navigator.pop(context),
+        style: FilledButton.styleFrom(
+          backgroundColor: warnaUtama,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        child: Text(
+          isAktif
+              ? 'Pelajari Kata Hari Ini ✨'
+              : isTerputus
+                  ? 'Nyalakan Kembali Apiku! 🔥'
+                  : 'Mulai Belajar Sekarang ',
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14.5,
+          ),
+        ),
+      ),
+    );
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: TemaBritishly.putih,
       elevation: 8,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 16, 22, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Baris header dengan tombol silang (X)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SizedBox(width: 32),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: warnaLatarIcon,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isTerputus
-                            ? Icons.eco_rounded
-                            : Icons.local_fire_department_rounded,
-                        size: 15,
-                        color: warnaUtama,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        isAktif
-                            ? 'STREAK AKTIF'
-                            : isTerputus
-                                ? 'SEMANGAT BARU'
-                                : 'MULAI STREAK',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.6,
-                          color: warnaUtama,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  key: const Key('tombol_tutup_dialog_streak'),
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  color: TemaBritishly.tintaPudar,
-                  onPressed: () => Navigator.pop(context),
-                  tooltip: 'Tutup',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Animasi visual api / tunas berdenyut
-            AnimatedBuilder(
-              animation: _ctrl,
-              builder: (context, child) {
-                final skalaTotal = _skala.value * (_ctrl.value > 0.6 ? _denyut.value : 1.0);
-                return Transform.scale(
-                  scale: skalaTotal.clamp(0.01, 1.2),
-                  child: child,
-                );
-              },
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      warnaUtama.withValues(alpha: 0.25),
-                      warnaUtama.withValues(alpha: 0.05),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.4, 0.7, 1.0],
-                  ),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      color: warnaLatarIcon,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: warnaUtama.withValues(alpha: 0.3),
-                          blurRadius: 16,
-                          spreadRadius: 2,
+      insetPadding: lanskap
+          ? const EdgeInsets.symmetric(horizontal: 24, vertical: 12)
+          : const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: lanskap ? 580 : double.infinity),
+        child: SingleChildScrollView(
+          padding: lanskap
+              ? const EdgeInsets.fromLTRB(22, 10, 22, 20)
+              : const EdgeInsets.fromLTRB(22, 16, 22, 24),
+          child: lanskap
+              // Tinggi layar sempit: animasi di kiri, teks dan tombol di kanan.
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    header,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        animasi,
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              badge,
+                              const SizedBox(height: 10),
+                              judul,
+                              const SizedBox(height: 8),
+                              pesan,
+                              const SizedBox(height: 16),
+                              tombol,
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    child: Icon(
-                      isTerputus
-                          ? Icons.refresh_rounded
-                          : Icons.local_fire_department_rounded,
-                      size: 44,
-                      color: warnaUtama,
-                    ),
-                  ),
+                  ],
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    header,
+                    const SizedBox(height: 12),
+                    animasi,
+                    const SizedBox(height: 16),
+                    badge,
+                    const SizedBox(height: 12),
+                    judul,
+                    const SizedBox(height: 10),
+                    pesan,
+                    const SizedBox(height: 22),
+                    tombol,
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Badge angka hari
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: BoxDecoration(
-                color: TemaBritishly.kremIsi,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: TemaBritishly.kremGaris),
-              ),
-              child: Text(
-                isTerputus
-                    ? 'Hari ke-1'
-                    : '${widget.streak} Hari Berturut-turut',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: TemaBritishly.tinta,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Judul
-            Text(
-              isAktif
-                  ? 'Streak Belajar Terjaga! 🔥'
-                  : isTerputus
-                      ? 'Streak Mengulang dari Hari ke-1'
-                      : 'Langkah Pertama Dimulai!',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: TemaBritishly.tinta,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Pesan persuasif & motivasi
-            Text(
-              isAktif
-                  ? 'Konsistensimu sungguh luar biasa! Luangkan 1 menit untuk membuka kata hari ini dan jaga api belajarmu tetap menyala.'
-                  : isTerputus
-                      ? 'Jangan patah semangat! Kehilangan streak bukan berarti kehilangan ilmu yang telah kamu pelajari. Perjalanan ribuan mil selalu dimulai dari satu langkah kecil. Mari nyalakan kembali apimu hari ini!'
-                      : 'Selamat datang di Britishly! Buka aplikasi setiap hari untuk membangun kebiasaan belajar dan menguasai kosakata baru bahasa Inggris.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 13.5,
-                color: TemaBritishly.tintaPudar,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 22),
-
-            // Tombol Aksi Utama
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('tombol_aksi_dialog_streak'),
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(
-                  backgroundColor: warnaUtama,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  isAktif
-                      ? 'Pelajari Kata Hari Ini ✨'
-                      : isTerputus
-                          ? 'Nyalakan Kembali Apiku! 🔥'
-                          : 'Mulai Belajar Sekarang ',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14.5,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

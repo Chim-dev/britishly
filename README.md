@@ -227,6 +227,13 @@ terhadap data eksternal, karena data tersebut bukan milik aplikasi.
 ✅ Aplikasi ini tidak mendistribusikan konten visual maupun audio milik pihak ketiga,
 sehingga tidak melanggar kebijakan Intellectual Property Google Play Store.
 
+**Aset gambar:** satu-satunya gambar di aplikasi adalah `frontend/lib/assets/icon.png`
+(launcher icon & splash screen), dibuat dengan AI image generator oleh tim — bukan
+diambil dari situs/pihak lain. Font memakai Google Fonts (lisensi SIL Open Font License).
+
+**Filter konten:** kata harian dipilih otomatis di server (`supabase/functions/jadwal-kata`)
+dan disaring dari kata kasar, seksual eksplisit, serta hinaan sebelum ditampilkan ke pengguna.
+
 ---
 
 ## 🎓 Konteks Akademik

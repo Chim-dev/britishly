@@ -255,6 +255,26 @@ class TemaBritishly {
         ),
       ),
 
+      // Pengganti navigationBar saat HP dimiringkan (lihat HalamanUtama).
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: putih,
+        indicatorColor: hijauSamar,
+        elevation: 0,
+        labelType: NavigationRailLabelType.all,
+        selectedLabelTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: hijau,
+        ),
+        unselectedLabelTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+          color: tintaPudar,
+        ),
+        selectedIconTheme: const IconThemeData(size: 22, color: hijau),
+        unselectedIconTheme: const IconThemeData(size: 22, color: tintaPudar),
+      ),
+
       dialogTheme: DialogThemeData(
         backgroundColor: putih,
         surfaceTintColor: Colors.transparent,

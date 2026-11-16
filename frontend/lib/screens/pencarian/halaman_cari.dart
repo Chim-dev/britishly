@@ -244,104 +244,131 @@ class _HalamanCariState extends State<HalamanCari> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Switcher Mode Minimalis: [ Kosakata & Sinonim ] vs [ Akronim & Slang ]
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: TemaBritishly.kremIsi,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: TemaBritishly.kremGaris),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _tombolTabMode(
-                    label: 'Kata & Sinonim',
-                    ikon: Icons.menu_book_rounded,
-                    aktif: _mode == ModePencarian.kosakata,
-                    onTap: () {
-                      if (_mode != ModePencarian.kosakata) {
-                        setState(() {
-                          _mode = ModePencarian.kosakata;
-                          _ctrl.clear();
-                          _hasil = null;
-                          _pesanError = null;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: _tombolTabMode(
-                    label: 'Akronim & Slang',
-                    ikon: Icons.tag_rounded,
-                    aktif: _mode == ModePencarian.akronim,
-                    onTap: () {
-                      if (_mode != ModePencarian.akronim) {
-                        setState(() {
-                          // Pencarian kosakata yang masih berjalan tidak lagi
-                          // relevan setelah pindah ke tab akronim.
-                          _idPencarian++;
-                          _mode = ModePencarian.akronim;
-                          _ctrl.clear();
-                          _sedangMuat = false;
-                          _sedangMuatSinonim = false;
-                          _filterAkronim();
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Input Pencarian Modern (Hanya untuk Kata & Sinonim)
-        if (_mode == ModePencarian.kosakata)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
-            child: TextField(
-              controller: _ctrl,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _cariKata(),
-              autocorrect: false,
-              decoration: InputDecoration(
-                hintText: 'Ketik kata bahasa Inggris (e.g. delightful)...',
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                suffixIcon: _ctrl.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18),
-                        onPressed: () {
-                          setState(() {
-                            // Batalkan hasil pencarian yang masih di jalan,
-                            // supaya tidak muncul lagi setelah dibersihkan.
-                            _idPencarian++;
-                            _ctrl.clear();
-                            _hasil = null;
-                            _sinonim = [];
-                            _saranLokal = [];
-                            _pesanError = null;
-                            _sedangMuat = false;
-                            _sedangMuatSinonim = false;
-                          });
-                        },
-                      ),
-              ),
-              onChanged: (val) {
-                setState(() {
-                  _saranLokal = LayananKamus.instance.cariSaranLokal(val);
-                });
+  Widget _pengalihMode() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: TemaBritishly.kremIsi,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TemaBritishly.kremGaris),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _tombolTabMode(
+              label: 'Kata & Sinonim',
+              ikon: Icons.menu_book_rounded,
+              aktif: _mode == ModePencarian.kosakata,
+              onTap: () {
+                if (_mode != ModePencarian.kosakata) {
+                  setState(() {
+                    _mode = ModePencarian.kosakata;
+                    _ctrl.clear();
+                    _hasil = null;
+                    _pesanError = null;
+                  });
+                }
               },
             ),
           ),
+          Expanded(
+            child: _tombolTabMode(
+              label: 'Akronim & Slang',
+              ikon: Icons.tag_rounded,
+              aktif: _mode == ModePencarian.akronim,
+              onTap: () {
+                if (_mode != ModePencarian.akronim) {
+                  setState(() {
+                    // Pencarian kosakata yang masih berjalan tidak lagi
+                    // relevan setelah pindah ke tab akronim.
+                    _idPencarian++;
+                    _mode = ModePencarian.akronim;
+                    _ctrl.clear();
+                    _sedangMuat = false;
+                    _sedangMuatSinonim = false;
+                    _filterAkronim();
+                  });
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kolomCari() {
+    return TextField(
+      controller: _ctrl,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => _cariKata(),
+      autocorrect: false,
+      decoration: InputDecoration(
+        hintText: 'Ketik kata bahasa Inggris (e.g. delightful)...',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: _ctrl.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear_rounded, size: 18),
+                onPressed: () {
+                  setState(() {
+                    // Batalkan hasil pencarian yang masih di jalan,
+                    // supaya tidak muncul lagi setelah dibersihkan.
+                    _idPencarian++;
+                    _ctrl.clear();
+                    _hasil = null;
+                    _sinonim = [];
+                    _saranLokal = [];
+                    _pesanError = null;
+                    _sedangMuat = false;
+                    _sedangMuatSinonim = false;
+                  });
+                },
+              ),
+      ),
+      onChanged: (val) {
+        setState(() {
+          _saranLokal = LayananKamus.instance.cariSaranLokal(val);
+        });
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lanskap =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+
+    return Column(
+      children: [
+        if (lanskap)
+          // Tinggi layar sempit: tab mode dan kolom cari dijajarkan satu baris.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+            child: Row(
+              children: [
+                SizedBox(width: 320, child: _pengalihMode()),
+                if (_mode == ModePencarian.kosakata) ...[
+                  const SizedBox(width: 12),
+                  Expanded(child: _kolomCari()),
+                ],
+              ],
+            ),
+          )
+        else ...[
+          // Switcher Mode Minimalis: [ Kosakata & Sinonim ] vs [ Akronim & Slang ]
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+            child: _pengalihMode(),
+          ),
+
+          // Input Pencarian Modern (Hanya untuk Kata & Sinonim)
+          if (_mode == ModePencarian.kosakata)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 12),
+              child: _kolomCari(),
+            ),
+        ],
 
         // Saran Kata Instan (Autocomplete Lokal)
         if (_mode == ModePencarian.kosakata &&
@@ -545,282 +572,313 @@ class _HalamanCariState extends State<HalamanCari> {
     final sudahAda = _sudahTersimpan.contains(hasil.kata.toLowerCase());
     final jumlahDipilih = _sinonim.where((s) => s.dipilih).length;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
-      children: [
-        // Kartu Kata Utama + Pelafalan + Tombol Audio British
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  hasil.kata,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.9,
-                                    color: TemaBritishly.tinta,
-                                  ),
+    // Kartu kata, penjelasan AI, dan definisi per jenis kata.
+    final bagianKata = <Widget>[
+      // Kartu Kata Utama + Pelafalan + Tombol Audio British
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                hasil.kata,
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.9,
+                                  color: TemaBritishly.tinta,
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              LabelLevel(kata: hasil.kata, ukuranTeks: 12),
-                            ],
-                          ),
-                          if (hasil.fonetik.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              hasil.fonetik,
-                              style: const TextStyle(
-                                fontSize: 14.5,
-                                color: TemaBritishly.tintaPudar,
-                                fontFamily: 'monospace',
-                              ),
                             ),
+                            const SizedBox(width: 8),
+                            LabelLevel(kata: hasil.kata, ukuranTeks: 12),
                           ],
+                        ),
+                        if (hasil.fonetik.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            hasil.fonetik,
+                            style: const TextStyle(
+                              fontSize: 14.5,
+                              color: TemaBritishly.tintaPudar,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Tombol Audio British
+                  TombolAudio(teks: hasil.kata),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 2.5,
+                    decoration: BoxDecoration(
+                      color: TemaBritishly.hijau,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (sudahAda)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: TemaBritishly.hijauSamar,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 13,
+                            color: TemaBritishly.hijau,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Sudah Tersimpan',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: TemaBritishly.hijau,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Tombol Audio British
-                    TombolAudio(teks: hasil.kata),
-                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+
+      // Penjelasan Cerdas AI (On-Demand dengan Fallback Cepat)
+      KartuPenjelasanAi(kata: hasil.kata),
+      const SizedBox(height: 16),
+
+      // Definisi per jenis kata
+      ...hasil.makna.map((m) => _kartuMakna(m)),
+    ];
+
+    // Pilihan sinonim dan tombol simpan.
+    final bagianSinonim = <Widget>[
+      Row(
+        children: [
+          const Text(
+            'Makna Serupa (Sinonim)',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: TemaBritishly.tinta,
+            ),
+          ),
+          const Spacer(),
+          if (_sinonim.isNotEmpty)
+            Text(
+              '$jumlahDipilih dipilih',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: TemaBritishly.hijau,
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      const Text(
+        'Pilih sinonim yang ingin disimpan bersama kata utama.',
+        style: TextStyle(fontSize: 12.5, color: TemaBritishly.tintaPudar),
+      ),
+      const SizedBox(height: 12),
+
+      if (_sedangMuatSinonim)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: TemaBritishly.hijau,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 2.5,
-                      decoration: BoxDecoration(
-                        color: TemaBritishly.hijau,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const Spacer(),
-                    if (sudahAda)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: TemaBritishly.hijauSamar,
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.check_circle_rounded,
-                              size: 13,
-                              color: TemaBritishly.hijau,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Sudah Tersimpan',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                const SizedBox(width: 14),
+                const Text(
+                  'Menghubungkan sinonim terbaik...',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: TemaBritishly.tintaPudar,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+      else if (_sinonim.isEmpty)
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Text(
+              'Tidak ada kata serupa yang ditemukan untuk "${hasil.kata}".',
+              style: const TextStyle(color: TemaBritishly.tintaPudar),
+            ),
+          ),
+        )
+      else
+        Card(
+          child: Column(
+            children: [
+              for (var i = 0; i < _sinonim.length; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                CheckboxListTile(
+                  value: _sinonim[i].dipilih,
+                  onChanged: (v) =>
+                      setState(() => _sinonim[i].dipilih = v ?? false),
+                  title: Row(
+                    children: [
+                      InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () => _cariKata(_sinonim[i].teks),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _sinonim[i].teks,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  decoration: TextDecoration.underline,
+                                  decorationStyle: TextDecorationStyle.dotted,
+                                  color: TemaBritishly.tinta,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              const Icon(
+                                Icons.open_in_new_rounded,
+                                size: 13,
                                 color: TemaBritishly.hijau,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Penjelasan Cerdas AI (On-Demand dengan Fallback Cepat)
-        KartuPenjelasanAi(kata: hasil.kata),
-        const SizedBox(height: 16),
-
-        // Definisi per jenis kata
-        ...hasil.makna.map((m) => _kartuMakna(m)),
-
-        // Bagian Sinonim
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            const Text(
-              'Makna Serupa (Sinonim)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: TemaBritishly.tinta,
-              ),
-            ),
-            const Spacer(),
-            if (_sinonim.isNotEmpty)
-              Text(
-                '$jumlahDipilih dipilih',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: TemaBritishly.hijau,
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Pilih sinonim yang ingin disimpan bersama kata utama.',
-          style: TextStyle(fontSize: 12.5, color: TemaBritishly.tintaPudar),
-        ),
-        const SizedBox(height: 12),
-
-        if (_sedangMuatSinonim)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: TemaBritishly.hijau,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  const Text(
-                    'Menghubungkan sinonim terbaik...',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: TemaBritishly.tintaPudar,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else if (_sinonim.isEmpty)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Text(
-                'Tidak ada kata serupa yang ditemukan untuk "${hasil.kata}".',
-                style: const TextStyle(color: TemaBritishly.tintaPudar),
-              ),
-            ),
-          )
-        else
-          Card(
-            child: Column(
-              children: [
-                for (var i = 0; i < _sinonim.length; i++) ...[
-                  if (i > 0) const Divider(height: 1),
-                  CheckboxListTile(
-                    value: _sinonim[i].dipilih,
-                    onChanged: (v) =>
-                        setState(() => _sinonim[i].dipilih = v ?? false),
-                    title: Row(
-                      children: [
-                        InkWell(
-                          borderRadius: BorderRadius.circular(6),
-                          onTap: () => _cariKata(_sinonim[i].teks),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  _sinonim[i].teks,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    decoration: TextDecoration.underline,
-                                    decorationStyle: TextDecorationStyle.dotted,
-                                    color: TemaBritishly.tinta,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                const Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 13,
-                                  color: TemaBritishly.hijau,
-                                ),
-                              ],
-                            ),
+                            ],
                           ),
                         ),
-                        const Spacer(),
-                        TombolAudio(
-                          teks: _sinonim[i].teks,
-                          ukuran: 28,
-                          tooltip: 'Dengar "${_sinonim[i].teks}"',
-                        ),
-                      ],
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(
-                        PanduanNuansa.nuansaSinonim(
-                          _sinonim[i].teks,
-                          definisiAsli: _sinonim[i].definisi,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: TemaBritishly.tintaPudar,
-                          height: 1.35,
-                        ),
+                      ),
+                      const Spacer(),
+                      TombolAudio(
+                        teks: _sinonim[i].teks,
+                        ukuran: 28,
+                        tooltip: 'Dengar "${_sinonim[i].teks}"',
+                      ),
+                    ],
+                  ),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      PanduanNuansa.nuansaSinonim(
+                        _sinonim[i].teks,
+                        definisiAsli: _sinonim[i].definisi,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: TemaBritishly.tintaPudar,
+                        height: 1.35,
                       ),
                     ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    dense: true,
                   ),
-                ],
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                ),
               ],
-            ),
-          ),
-
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: _sedangSimpan ? null : _simpanKata,
-          icon: _sedangSimpan
-              ? const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.bookmark_add_rounded, size: 20),
-          label: Text(
-            jumlahDipilih == 0
-                ? 'Simpan Kata Ini'
-                : 'Simpan Kata + $jumlahDipilih Sinonim',
+            ],
           ),
         ),
-        if (sudahAda) ...[
-          const SizedBox(height: 8),
-          const Text(
-            'Kata ini sudah tersimpan. Kamu dapat mengelola sinonimnya di tab Koleksi.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: TemaBritishly.tintaPudar),
+
+      const SizedBox(height: 20),
+      FilledButton.icon(
+        onPressed: _sedangSimpan ? null : _simpanKata,
+        icon: _sedangSimpan
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.bookmark_add_rounded, size: 20),
+        label: Text(
+          jumlahDipilih == 0
+              ? 'Simpan Kata Ini'
+              : 'Simpan Kata + $jumlahDipilih Sinonim',
+        ),
+      ),
+      if (sudahAda) ...[
+        const SizedBox(height: 8),
+        const Text(
+          'Kata ini sudah tersimpan. Kamu dapat mengelola sinonimnya di tab Koleksi.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: TemaBritishly.tintaPudar),
+        ),
+      ],
+    ];
+
+    // Saat HP dimiringkan, definisi dan sinonim tampil berdampingan, jadi
+    // tombol simpan tidak terkubur di bawah seluruh definisi.
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 8, 24),
+              children: bagianKata,
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(8, 4, 20, 24),
+              children: bagianSinonim,
+            ),
           ),
         ],
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 48),
+      children: [
+        ...bagianKata,
+        // Bagian Sinonim
+        const SizedBox(height: 10),
+        ...bagianSinonim,
       ],
     );
   }
@@ -964,6 +1022,25 @@ class _HalamanCariState extends State<HalamanCari> {
               ],
             ),
           )
+        else if (MediaQuery.orientationOf(context) == Orientation.landscape)
+          // Layar lebar: dua kartu per baris, sama tinggi.
+          for (var i = 0; i < _daftarAkronim.length; i += 2) ...[
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _kartuAkronim(_daftarAkronim[i])),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: i + 1 < _daftarAkronim.length
+                        ? _kartuAkronim(_daftarAkronim[i + 1])
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ]
         else
           for (final akronim in _daftarAkronim) ...[
             _kartuAkronim(akronim),

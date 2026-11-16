@@ -217,6 +217,14 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
 
     final kata = _kata!;
 
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return RefreshIndicator(
+        onRefresh: _muat,
+        color: TemaBritishly.hijau,
+        child: _tataLetakLanskap(kata),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _muat,
       color: TemaBritishly.hijau,
@@ -238,24 +246,85 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
           ],
 
           // Footer info santai
-          Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 14,
-                  color: TemaBritishly.amber,
+          _catatanKaki(),
+        ],
+      ),
+    );
+  }
+
+  /// Saat HP dimiringkan, kartu dibelah dua: kata di kiri dan maknanya di
+  /// kanan. Dengan begitu kartu yang belum dibuka muat tanpa scroll, dan
+  /// setelah dibuka, katanya tetap terlihat selama makna di-scroll.
+  Widget _tataLetakLanskap(KataHarian kata) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 8, 24),
+            children: [
+              _barisTanggalStreak(kata),
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 20),
+                  child: _kepalaKartu(kata, terbuka: _terbuka),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  'Satu kata baru tiap hari',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: TemaBritishly.tintaPudar.withValues(alpha: 0.85),
+              ),
+              const SizedBox(height: 16),
+              if (_terbuka) ...[
+                _tombolSimpan(),
+                const SizedBox(height: 20),
+              ],
+              _catatanKaki(),
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 3,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(8, 16, 20, 24),
+            children: [
+              Card(
+                child: AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 320),
+                  crossFadeState: _terbuka
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: _isiTertutup(),
+                  ),
+                  secondChild: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: _isiTerbuka(kata),
                   ),
                 ),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _catatanKaki() {
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.auto_awesome_rounded,
+            size: 14,
+            color: TemaBritishly.amber,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Satu kata baru tiap hari',
+            style: TextStyle(
+              fontSize: 12,
+              color: TemaBritishly.tintaPudar.withValues(alpha: 0.85),
             ),
           ),
         ],
@@ -352,111 +421,9 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: TemaBritishly.hijauSamar,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'KATA HARI INI',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.8,
-                        color: TemaBritishly.hijau,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  LabelLevel(kata: kata.kata, ukuranTeks: 10.5),
-                  const Spacer(),
-                  TombolAudio(
-                    teks: kata.kata,
-                    ukuran: 32,
-                    warnaLatar: TemaBritishly.hijauSamar,
-                    warnaIkon: TemaBritishly.hijau,
-                  ),
-                ],
-              ),
+              _kepalaKartu(kata, terbuka: false),
               const SizedBox(height: 16),
-
-              Text(
-                kata.kata,
-                style: GoogleFonts.fredoka(
-                  fontSize: 29,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                  color: TemaBritishly.tinta,
-                ),
-              ),
-
-              if (kata.fonetik.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: TemaBritishly.kremIsi,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    kata.fonetik,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      color: TemaBritishly.tintaPudar,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: 16),
-              // Area petunjuk Flashcard
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TemaBritishly.kremIsi.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: TemaBritishly.kremGaris,
-                    style: BorderStyle.solid,
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline_rounded,
-                      size: 18,
-                      color: TemaBritishly.amber,
-                    ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Tebak arti kata ini dalam hati, lalu buka untuk melihat definisi dan tips penggunaannya.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.45,
-                          color: TemaBritishly.tintaPudar,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Tombol Reveal
-              FilledButton.icon(
-                onPressed: _bukaMakna,
-                icon: const Icon(Icons.visibility_rounded, size: 18),
-                label: const Text('Buka Makna & Detail Kata'),
-              ),
+              _isiTertutup(),
             ],
           ),
         ),
@@ -469,71 +436,7 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Baris atas kartu
-              Row(
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: TemaBritishly.hijauSamar,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'KATA HARI INI',
-                      style: GoogleFonts.fredoka(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.8,
-                        color: TemaBritishly.hijau,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  LabelLevel(kata: kata.kata, ukuranTeks: 10.5),
-                  const Spacer(),
-                  TombolAudio(
-                    teks: kata.kata,
-                    ukuran: 32,
-                    warnaLatar: TemaBritishly.hijauSamar,
-                    warnaIkon: TemaBritishly.hijau,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Kata Utama
-              Text(
-                kata.kata,
-                style: GoogleFonts.fredoka(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                  color: TemaBritishly.tinta,
-                ),
-              ),
-
-              if (kata.fonetik.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: TemaBritishly.kremIsi,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    kata.fonetik,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      color: TemaBritishly.tintaPudar,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ),
-              ],
-
+              _kepalaKartu(kata, terbuka: true),
               const SizedBox(height: 14),
               Container(
                 width: 32,
@@ -544,145 +447,277 @@ class _HalamanKataHarianState extends State<HalamanKataHarian> {
                 ),
               ),
               const SizedBox(height: 12),
-
-              // Definisi
-              if (kata.definisi.isNotEmpty)
-                Text(
-                  kata.definisi,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    height: 1.55,
-                    color: TemaBritishly.tinta,
-                  ),
-                )
-              else
-                const Text(
-                  'Definisi belum bisa diambil. Tarik ke bawah untuk memuat ulang.',
-                  style:
-                      TextStyle(color: TemaBritishly.tintaPudar, fontSize: 14),
-                ),
-
-              // Penjelasan Pintar AI (Bilingual & On-Demand)
-              const SizedBox(height: 12),
-              KartuPenjelasanAi(kata: kata.kata),
-
-              // -------------------------------------------------------------
-              // FITUR: Contoh Penggunaan
-              // -------------------------------------------------------------
-              if (kata.contoh.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  decoration: BoxDecoration(
-                    color: TemaBritishly.kremIsi,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: TemaBritishly.kremGaris.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.format_quote_rounded,
-                            size: 16,
-                            color: TemaBritishly.hijau,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'CONTOH PENGGUNAAN',
-                            style: TemaBritishly.labelBagian.copyWith(
-                              fontSize: 10,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '"${kata.contoh}"',
-                        style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                          height: 1.55,
-                          fontSize: 13.5,
-                          color: TemaBritishly.tinta,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // -------------------------------------------------------------
-              // FITUR 3: Cuplikan Sinonim Terkait
-              // -------------------------------------------------------------
-              if (_cuplikanSinonim.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Text(
-                  'CUPLIKAN SINONIM CEPAT',
-                  style: TemaBritishly.labelBagian.copyWith(fontSize: 10.5),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _cuplikanSinonim.map((s) {
-                    final nuansa = PanduanNuansa.nuansaSinonim(
-                      s.teks,
-                      definisiAsli: s.definisi,
-                    );
-                    return Tooltip(
-                      message: '$nuansa (Ketuk teks untuk arti, ikon speaker untuk audio)',
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () => tampilkanLembarDetailKata(context, s.teks),
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
-                            decoration: BoxDecoration(
-                              color: TemaBritishly.kremIsi,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: TemaBritishly.kremGaris),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  s.teks,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: TemaBritishly.tinta,
-                                    decoration: TextDecoration.underline,
-                                    decorationStyle: TextDecorationStyle.dotted,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                TombolAudio(
-                                  teks: s.teks,
-                                  ukuran: 22,
-                                  warnaLatar: Colors.transparent,
-                                  warnaIkon: TemaBritishly.hijau,
-                                  tooltip: 'Dengar "${s.teks}"',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+              _isiTerbuka(kata),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Label, kata utama, dan fonetik — bagian kartu yang sama sebelum dan
+  /// sesudah dibuka.
+  Widget _kepalaKartu(KataHarian kata, {required bool terbuka}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: TemaBritishly.hijauSamar,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'KATA HARI INI',
+                style: GoogleFonts.fredoka(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                  color: TemaBritishly.hijau,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            LabelLevel(kata: kata.kata, ukuranTeks: 10.5),
+            const Spacer(),
+            TombolAudio(
+              teks: kata.kata,
+              ukuran: 32,
+              warnaLatar: TemaBritishly.hijauSamar,
+              warnaIkon: TemaBritishly.hijau,
+            ),
+          ],
+        ),
+        SizedBox(height: terbuka ? 12 : 16),
+
+        Text(
+          kata.kata,
+          style: GoogleFonts.fredoka(
+            fontSize: terbuka ? 28 : 29,
+            fontWeight: FontWeight.w600,
+            height: 1.15,
+            color: TemaBritishly.tinta,
+          ),
+        ),
+
+        if (kata.fonetik.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: TemaBritishly.kremIsi,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              kata.fonetik,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: TemaBritishly.tintaPudar,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Petunjuk tebak-arti dan tombol buka, sebelum kartu dibuka.
+  Widget _isiTertutup() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Area petunjuk Flashcard
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: TemaBritishly.kremIsi.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: TemaBritishly.kremGaris,
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: const Row(
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                size: 18,
+                color: TemaBritishly.amber,
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Tebak arti kata ini dalam hati, lalu buka untuk melihat definisi dan tips penggunaannya.',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.45,
+                    color: TemaBritishly.tintaPudar,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Tombol Reveal
+        FilledButton.icon(
+          onPressed: _bukaMakna,
+          icon: const Icon(Icons.visibility_rounded, size: 18),
+          label: const Text('Buka Makna & Detail Kata'),
+        ),
+      ],
+    );
+  }
+
+  /// Definisi, penjelasan AI, contoh, dan sinonim, setelah kartu dibuka.
+  Widget _isiTerbuka(KataHarian kata) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Definisi
+        if (kata.definisi.isNotEmpty)
+          Text(
+            kata.definisi,
+            style: const TextStyle(
+              fontSize: 14.5,
+              height: 1.55,
+              color: TemaBritishly.tinta,
+            ),
+          )
+        else
+          const Text(
+            'Definisi belum bisa diambil. Tarik ke bawah untuk memuat ulang.',
+            style:
+                TextStyle(color: TemaBritishly.tintaPudar, fontSize: 14),
+          ),
+
+        // Penjelasan Pintar AI (Bilingual & On-Demand)
+        const SizedBox(height: 12),
+        KartuPenjelasanAi(kata: kata.kata),
+
+        // -------------------------------------------------------------
+        // FITUR: Contoh Penggunaan
+        // -------------------------------------------------------------
+        if (kata.contoh.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            decoration: BoxDecoration(
+              color: TemaBritishly.kremIsi,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: TemaBritishly.kremGaris.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.format_quote_rounded,
+                      size: 16,
+                      color: TemaBritishly.hijau,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'CONTOH PENGGUNAAN',
+                      style: TemaBritishly.labelBagian.copyWith(
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '"${kata.contoh}"',
+                  style: const TextStyle(
+                    fontStyle: FontStyle.italic,
+                    height: 1.55,
+                    fontSize: 13.5,
+                    color: TemaBritishly.tinta,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // -------------------------------------------------------------
+        // FITUR 3: Cuplikan Sinonim Terkait
+        // -------------------------------------------------------------
+        if (_cuplikanSinonim.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            'CUPLIKAN SINONIM CEPAT',
+            style: TemaBritishly.labelBagian.copyWith(fontSize: 10.5),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _cuplikanSinonim.map((s) {
+              final nuansa = PanduanNuansa.nuansaSinonim(
+                s.teks,
+                definisiAsli: s.definisi,
+              );
+              return Tooltip(
+                message: '$nuansa (Ketuk teks untuk arti, ikon speaker untuk audio)',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => tampilkanLembarDetailKata(context, s.teks),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
+                      decoration: BoxDecoration(
+                        color: TemaBritishly.kremIsi,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: TemaBritishly.kremGaris),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            s.teks,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: TemaBritishly.tinta,
+                              decoration: TextDecoration.underline,
+                              decorationStyle: TextDecorationStyle.dotted,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          TombolAudio(
+                            teks: s.teks,
+                            ukuran: 22,
+                            warnaLatar: Colors.transparent,
+                            warnaIkon: TemaBritishly.hijau,
+                            tooltip: 'Dengar "${s.teks}"',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
 
   Widget _tombolSimpan() {
     if (_sudahDisimpan) {

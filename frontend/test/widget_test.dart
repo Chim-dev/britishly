@@ -404,6 +404,58 @@ void main() {
       expect(find.text('Mulai Belajar Sekarang 🚀'), findsOneWidget);
     });
   });
+
+  group('Tata letak landscape', () {
+    // HP biasa (lebar portrait 360dp) yang dimiringkan.
+    void miringkanLayar(WidgetTester tester) {
+      tester.view.physicalSize = const Size(780, 360);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+    }
+
+    Widget pembuka(void Function(BuildContext) buka) => MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => buka(context),
+                child: const Text('Buka'),
+              ),
+            ),
+          ),
+        );
+
+    for (final tipe in TipeStreakDialog.values) {
+      testWidgets('dialog streak ${tipe.name} tidak meluber', (tester) async {
+        miringkanLayar(tester);
+        await tester.pumpWidget(pembuka(
+          (context) => tampilkanDialogStreak(context, tipe: tipe, streak: 7),
+        ));
+        await tester.tap(find.text('Buka'));
+        // Animasi apinya berdenyut terus, jadi tidak bisa pumpAndSettle.
+        await tester.pump(const Duration(milliseconds: 700));
+
+        expect(find.byType(DialogAnimasiStreak), findsOneWidget);
+      });
+    }
+
+    testWidgets('dialog hapus akun tidak meluber', (tester) async {
+      miringkanLayar(tester);
+      await tester.pumpWidget(pembuka(tampilkanDialogHapusAkun));
+      await tester.tap(find.text('Buka'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hapus Akun Permanen?'), findsOneWidget);
+    });
+
+    testWidgets('pemilih kategori tidak terpotong', (tester) async {
+      miringkanLayar(tester);
+      await tester.pumpWidget(pembuka(
+        (context) => pilihKategori(context, kategoriTambahan: const []),
+      ));
+      await tester.tap(find.text('Buka'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pilih Kategori Kosakata'), findsOneWidget);
+    });
+  });
 }
-
-
