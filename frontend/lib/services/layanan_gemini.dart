@@ -97,9 +97,9 @@ class LayananGemini {
   static const _maksEntriCache = 200;
 
   /// Batas waktu menunggu Edge Function. Dibuat lebih longgar daripada batas
-  /// per-model di server (12 detik), supaya server sempat mencoba model
+  /// total di server (3 model x 15 detik), supaya server sempat mencoba model
   /// cadangan sebelum aplikasi menyerah lebih dulu.
-  static const _batasWaktu = Duration(seconds: 30);
+  static const _batasWaktu = Duration(seconds: 50);
 
   /// Meminta penjelasan kosakata cerdas.
   /// Dilengkapi sistem 2-tier caching (Memori + SharedPreferences).

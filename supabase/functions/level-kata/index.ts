@@ -27,15 +27,21 @@ const HEADER_CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Sengaja cuma 3 model: 3 x BATAS_WAKTU_MS harus muat di batas waktu app
+// (_batasWaktu di layanan Dart, 50 detik), supaya cadangan sempat dicoba.
 const DAFTAR_MODEL = [
   "gemini-flash-lite-latest",
   "gemini-3.5-flash-lite",
-  "gemini-flash-latest",
-  "gemini-3.5-flash",
   "gemini-2.5-flash",
 ];
 
-const BATAS_WAKTU_MS = 12_000;
+/// Thinking dimatikan/dikecilkan: tugas ini cuma format kamus, dan thinking
+/// bawaan Gemini 3.x bikin jawaban lewat batas waktu ("Signal timed out").
+/// Gemini 2.x pakai thinkingBudget, 3.x pakai thinkingLevel.
+const konfigThinking = (model: string) =>
+  model.startsWith("gemini-2") ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
+
+const BATAS_WAKTU_MS = 15_000;
 
 /// Satu kata tanpa spasi. Lebih ketat dari jelaskan-kata dengan sengaja:
 /// hasil di sini disimpan permanen untuk SEMUA user, dan input berspasi
@@ -185,9 +191,13 @@ Deno.serve(async (req: Request) => {
     return balasError("KUNCI_BELUM_DIATUR", 503, "GEMINI_API_KEY belum dipasang sebagai secret di Supabase.");
   }
 
-  const badanGemini = JSON.stringify({
+  const badanGemini = (model: string) => JSON.stringify({
     contents: [{ parts: [{ text: rakitPrompt(belumDiketahui) }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0 },
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0,
+      thinkingConfig: konfigThinking(model),
+    },
   });
 
   for (const model of DAFTAR_MODEL) {
@@ -198,7 +208,7 @@ Deno.serve(async (req: Request) => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body: badanGemini,
+          body: badanGemini(model),
           signal: AbortSignal.timeout(BATAS_WAKTU_MS),
         },
       );
@@ -207,7 +217,11 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    if (res.status === 404 || res.status === 503) continue;
+    if (res.status === 400 || res.status === 404 || res.status === 503) {
+      // 400 = model menolak parameter (mis. thinkingConfig) -> coba cadangan.
+      if (res.status === 400) console.error(`gemini ${model} status 400:`, await res.text());
+      continue;
+    }
 
     // Kuota Gemini habis: kembalikan yang sudah diketahui saja
     if (res.status === 429) return balas(level, { kuota_habis: true });

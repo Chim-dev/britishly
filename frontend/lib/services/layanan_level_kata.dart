@@ -26,7 +26,7 @@ class LayananLevelKata {
   static const _kunciCache = 'cache_level_kata';
   static const _maksEntriCache = 2000;
   static const _maksPerPermintaan = 25;
-  static const _batasWaktu = Duration(seconds: 30);
+  static const _batasWaktu = Duration(seconds: 50);
 
   /// Jeda pengumpulan. Cukup untuk semua kartu di satu layar ikut masuk.
   static const _jedaKumpul = Duration(milliseconds: 120);

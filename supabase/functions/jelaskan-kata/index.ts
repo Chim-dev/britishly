@@ -28,16 +28,22 @@ const HEADER_CORS = {
 
 /// Daftar model kandidat, dicoba berurutan. Kalau satu model dihentikan
 /// Google (404) atau sedang padat (503), otomatis lanjut ke berikutnya.
+// Sengaja cuma 3 model: 3 x BATAS_WAKTU_MS harus muat di batas waktu app
+// (_batasWaktu di layanan Dart, 50 detik), supaya cadangan sempat dicoba.
 const DAFTAR_MODEL = [
   "gemini-flash-lite-latest",
   "gemini-3.5-flash-lite",
-  "gemini-flash-latest",
-  "gemini-3.5-flash",
   "gemini-2.5-flash",
 ];
 
+/// Thinking dimatikan/dikecilkan: tugas ini cuma format kamus, dan thinking
+/// bawaan Gemini 3.x bikin jawaban lewat batas waktu ("Signal timed out").
+/// Gemini 2.x pakai thinkingBudget, 3.x pakai thinkingLevel.
+const konfigThinking = (model: string) =>
+  model.startsWith("gemini-2") ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
+
 /// Batas waktu satu panggilan model sebelum pindah ke cadangan.
-const BATAS_WAKTU_MS = 12_000;
+const BATAS_WAKTU_MS = 15_000;
 
 /// Hanya menerima satu kata / frasa pendek bahasa Inggris.
 const POLA_KATA = /^[a-z][a-z '-]*$/;
@@ -223,11 +229,12 @@ Deno.serve(async (req: Request) => {
     return balasan;
   };
 
-  const badanGemini = JSON.stringify({
+  const badanGemini = (model: string) => JSON.stringify({
     contents: [{ parts: [{ text: rakitPrompt(kata) }] }],
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.2,
+      thinkingConfig: konfigThinking(model),
     },
   });
 
@@ -247,7 +254,7 @@ Deno.serve(async (req: Request) => {
             // tercatat di log akses perantara mana pun.
             "x-goog-api-key": apiKey,
           },
-          body: badanGemini,
+          body: badanGemini(model),
           signal: AbortSignal.timeout(BATAS_WAKTU_MS),
         },
       );
@@ -261,7 +268,9 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    if (res.status === 404 || res.status === 503) {
+    if (res.status === 400 || res.status === 404 || res.status === 503) {
+      // 400 = model menolak parameter (mis. thinkingConfig) -> coba cadangan.
+      if (res.status === 400) console.error(`gemini ${model} status 400:`, await res.text());
       terakhirGagal = `Model ${model} tidak tersedia (${res.status}).`;
       continue;
     }
