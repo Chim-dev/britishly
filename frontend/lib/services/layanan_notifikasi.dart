@@ -103,7 +103,7 @@ class LayananNotifikasi {
   /// daripada meleset tujuh jam.
   Future<void> _setelZonaWaktuLokal() async {
     try {
-      final String namaZona = await FlutterTimezone.getLocalTimezone();
+      final String namaZona = (await FlutterTimezone.getLocalTimezone()).identifier;
       tz.setLocalLocation(tz.getLocation(namaZona));
       _zonaWaktuAkurat = true;
       return;
